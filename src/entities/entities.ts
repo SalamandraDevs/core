@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getExecutionCtx } from '../utils/context.js';
-import type { ICrud } from '../database/contracts.js';
+import type { ICrud } from '../database/base/contracts.js';
 import type { Entity, EntityChanges, EntityCreateInput } from './types.js';
 
 /**
@@ -37,30 +37,26 @@ export abstract class Entities<T extends Entity> {
   }
 
   /**
-   * Reads one entity record by its public identifier.
+   * Reads one entity record by its public identifier within the current tenant.
    * @param entityId - Entity identifier (`entityId`).
    * @param scope - When `softDeleted` is false, soft-deleted records are hidden.
    * @returns - The matching entity record, or null when not found.
    */
-  async read(
+  read(
     entityId: string,
     { softDeleted }: { softDeleted: boolean } = { softDeleted: false }
   ): Promise<T | null> {
-    const record: T | null = await this.crud.read('entityId', entityId);
+    const { tenantId } = getExecutionCtx().authenticated;
 
-    if (!record) {
-      return null;
-    }
-
-    if (!softDeleted && record.deletedAt !== null) {
-      return null;
-    }
-
-    return record;
+    return this.crud.read({
+      entityId,
+      tenantId,
+      ...(softDeleted ? {} : { deletedAt: null })
+    } as Partial<T>);
   }
 
   /**
-   * Updates one entity record by its public identifier.
+   * Updates one entity record by its public identifier within the current tenant.
    * @param entityId - Entity identifier (`entityId`).
    * @param changes - Allowed field changes for the entity record.
    * @param scope - When `softDeleted` is false, soft-deleted records are not updated.
@@ -71,23 +67,29 @@ export abstract class Entities<T extends Entity> {
     changes: EntityChanges<T>,
     { softDeleted }: { softDeleted: boolean } = { softDeleted: false }
   ): Promise<T | null> {
-    const record: T | null = await this.read(entityId, { softDeleted });
+    const { actorId, tenantId } = getExecutionCtx().authenticated;
+
+    const criteria: Partial<T> = {
+      entityId,
+      tenantId,
+      ...(softDeleted ? {} : { deletedAt: null })
+    } as Partial<T>;
+    
+    const record: T | null = await this.crud.read(criteria);
 
     if (!record) {
       return null;
     }
 
-    const { authenticated } = getExecutionCtx();
-
-    return this.crud.update('entityId', entityId, {
+    return this.crud.update(criteria, {
       ...changes,
       updatedAt: new Date(),
-      updatedBy: authenticated.actorId
+      updatedBy: actorId
     });
   }
 
   /**
-   * Deletes one entity record by its public identifier.
+   * Deletes one entity record by its public identifier within the current tenant.
    * @param entityId - Entity identifier (`entityId`).
    * @param mode - When `hard` is true, physically removes the record; otherwise soft deletes it.
    * @returns - The deleted entity record, or null when not found.
@@ -96,23 +98,30 @@ export abstract class Entities<T extends Entity> {
     entityId: string,
     { hard }: { hard: boolean } = { hard: false }
   ): Promise<T | null> {
+    const { actorId, tenantId } = getExecutionCtx().authenticated;
+
     if (hard) {
-      return this.crud.delete('entityId', entityId);
+      return this.crud.delete({ entityId, tenantId } as Partial<T>);
     }
 
-    const record: T | null = await this.read(entityId, { softDeleted: false });
+    const criteria: Partial<T> = {
+      entityId,
+      tenantId,
+      deletedAt: null
+    } as Partial<T>;
+    
+    const record: T | null = await this.crud.read(criteria);
 
     if (!record) {
       return null;
     }
 
-    const { authenticated } = getExecutionCtx();
     const now: Date = new Date();
 
-    return this.crud.update('entityId', entityId, {
+    return this.crud.update(criteria, {
       deletedAt: now,
       updatedAt: now,
-      updatedBy: authenticated.actorId
+      updatedBy: actorId
     } as Partial<T>);
   }
 }

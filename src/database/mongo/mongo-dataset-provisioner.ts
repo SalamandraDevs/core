@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod';
 import { zodToMongoSchema } from '@slmdevs/tools';
 
-import { DatasetProvisioner } from '../dataset-provisioner.js';
+import { DatasetProvisioner } from '../base/dataset-provisioner.js';
 import type { MongoDatasetDef, MongoIndexDef, MongoJSONSchema } from './types.js';
 
 /**

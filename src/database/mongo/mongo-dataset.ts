@@ -1,6 +1,6 @@
 import type { Db } from 'mongodb';
 
-import { Dataset } from '../dataset.js';
+import { Dataset } from '../base/dataset.js';
 import type { MongoIndexDef, MongoJSONSchema } from './types.js';
 
 /**

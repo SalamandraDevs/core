@@ -1,13 +1,14 @@
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-import type { ICrud } from '../contracts.js';
+import { assertCriteria } from '../../utils/validators.js';
+import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
  * MySQL implementation of the backend-neutral CRUD contract.
  *
- * Lookup keys are not verified as unique. Policy layer(e.g. Entities class) must use fields
+ * Criteria are not verified as unique. Policy layer (e.g. Entities class) must use fields
  * backed by appropriate unique constraints when deterministic targeting is required.
  */
 export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
@@ -46,33 +47,27 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Reads one record from MySQL by field value and returns the match, or null.
+   * Reads one record matching all criteria fields and returns the match, or null.
    * Returns the full stored record without MySQL surrogate `id`; null only when not found.
-   * @param key - Field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Record fields and values used for the lookup.
    * @returns - Matching backend-neutral record, or null when not found.
    */
-  async read<K extends keyof T>(key: K, value: T[K]): Promise<T | null> {
+  async read(criteria: Partial<T>): Promise<T | null> {
     // Read through the pool without opening a transaction.
-    const record: RowDataPacket | null = await this.findRecord(this.pool, key, value);
+    const record: RowDataPacket | null = await this.findRecord(this.pool, criteria);
 
     // Hide the storage id when a record is found.
     return record ? this.returnRecord(record) : null;
   }
 
   /**
-   * Updates one record in MySQL by field value and returns the updated record, or null.
+   * Updates one record matching all criteria fields and returns the updated record, or null.
    * Returns the full stored record without MySQL surrogate `id`; null only when not found.
-   * @param key - Field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Record fields and values used for the lookup.
    * @param changes - Partial record with fields to update.
    * @returns - Updated backend-neutral record, or null when not found.
    */
-  async update<K extends keyof T>(
-    key: K,
-    value: T[K],
-    changes: Partial<T>
-  ): Promise<T | null> {
+  async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
     // Reserve one connection for the complete transaction.
     const connection: PoolConnection = await this.pool.getConnection();
 
@@ -82,8 +77,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       // Find and lock the target (forUpdate = true) so it cannot change during the update.
       const storedRecord: RowDataPacket | null = await this.findRecord(
         connection,
-        key,
-        value,
+        criteria,
         true
       );
 
@@ -138,13 +132,12 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Deletes one record from MySQL by field value and returns the deleted record, or null.
+   * Deletes one record matching all criteria fields and returns the deleted record, or null.
    * Returns the full stored record without MySQL surrogate `id`; null only when not found.
-   * @param key - Field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Record fields and values used for the lookup.
    * @returns - Deleted backend-neutral record, or null when not found.
    */
-  async delete<K extends keyof T>(key: K, value: T[K]): Promise<T | null> {
+  async delete(criteria: Partial<T>): Promise<T | null> {
     // Reserve one connection for the complete transaction.
     const connection: PoolConnection = await this.pool.getConnection();
 
@@ -154,8 +147,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       // Find and lock the exact row to delete.
       const record: RowDataPacket | null = await this.findRecord(
         connection,
-        key,
-        value,
+        criteria,
         true
       );
 
@@ -185,28 +177,39 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Finds one stored record by field value.
+   * Finds one stored record matching all criteria fields.
    * @param connection - MySQL connection or pool used for the query.
-   * @param key - Field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Record fields and values used for the lookup.
    * @param forUpdate - Whether to lock the matching record for update.
    * @returns - Matching stored record, or null when not found.
    */
-  private async findRecord<K extends keyof T>(
+  private async findRecord(
     connection: Connection,
-    key: K,
-    value: T[K],
+    criteria: Partial<T>,
     forUpdate: boolean = false
   ): Promise<RowDataPacket | null> {
-    // Build one lookup, adding a transaction lock when requested.
+    assertCriteria(criteria);
+    const entries: [string, unknown][] = Object.entries(criteria);
+
+    // Build one compound lookup, adding a transaction lock when requested.
+    const conditions: string = entries
+      .map(([field, value]: [string, unknown]) =>
+        value === null
+          ? `${connection.escapeId(field)} IS NULL`
+          : `${connection.escapeId(field)} = ?`
+      )
+      .join(' AND ');
     const sql: string =
       `SELECT * FROM ${connection.escapeId(this.tableName)} ` +
-      `WHERE ${connection.escapeId(String(key))} = ? LIMIT 1` +
+      `WHERE ${conditions} LIMIT 1` +
         (forUpdate ? ' FOR UPDATE' : '');
-    
-    // Bind the lookup value and return only the first match.
+
+    // Bind non-null lookup values and return only the first match.
+    const values: ExecuteValues[] = entries
+      .filter(([, value]: [string, unknown]) => value !== null)
+      .map(([, value]: [string, unknown]) => value as ExecuteValues);
     const [records]: [RowDataPacket[], FieldPacket[]] =
-      await connection.execute<RowDataPacket[]>(sql, [value as ExecuteValues]);
+      await connection.execute<RowDataPacket[]>(sql, values);
 
     return records.at(0) ?? null;
   }

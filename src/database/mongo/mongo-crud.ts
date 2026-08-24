@@ -1,15 +1,17 @@
-import type { Collection, Document,  Filter } from 'mongodb';
+import type { Collection, Filter } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
-import type { ICrud } from '../contracts.js';
+import { assertCriteria } from '../../utils/validators.js';
+import type { ICrud } from '../base/contracts.js';
+import type { GeneralRecord } from '../types.js';
 
 /**
  * MongoDB implementation of the backend-neutral CRUD contract.
  *
- * Lookup keys are not verified as unique. Policy layer (e.g. Entities class) must use fields
+ * Criteria are not verified as unique. Policy layer (e.g. Entities class) must use fields
  * backed by appropriate unique constraints when deterministic targeting is required.
  */
-export class MongoCrud<T extends Document> implements ICrud<T> {
+export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Creates a Mongo CRUD adapter for one collection.
    * @param collection - Mongo collection that stores the entity records.
@@ -31,16 +33,14 @@ export class MongoCrud<T extends Document> implements ICrud<T> {
   }
 
   /**
-   * Reads one entity record from MongoDB by field value and returns the match, or null.
+   * Reads one entity record matching all criteria fields and returns the match, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Entity fields and values used for the lookup.
    * @returns - Matching backend-neutral record, or null when not found.
    */
-  async read<K extends keyof T>(key: K, value: T[K]): Promise<T | null> {
-    const document: WithId<T> | null = await this.collection.findOne({
-      [key]: value
-    } as Filter<T>);
+  async read(criteria: Partial<T>): Promise<T | null> {
+    assertCriteria(criteria);
+    const document: WithId<T> | null = await this.collection.findOne(criteria as Filter<T>);
 
     if (!document) {
       return null;
@@ -50,22 +50,17 @@ export class MongoCrud<T extends Document> implements ICrud<T> {
   }
 
   /**
-   * Updates one entity record in MongoDB by field value and returns the updated record, or null.
+   * Updates one entity record matching all criteria fields and returns the updated
+   * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Entity fields and values used for the lookup.
    * @param changes - Partial entity record with fields to update.
    * @returns - Updated backend-neutral record, or null when not found.
    */
-  async update<K extends keyof T>(
-    key: K,
-    value: T[K],
-    changes: Partial<T>
-  ): Promise<T | null> {
+  async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
+    assertCriteria(criteria);
     const document: WithId<T> | null = await this.collection.findOneAndUpdate(
-      {
-        [key]: value
-      } as Filter<T>,
+      criteria as Filter<T>,
       {
         $set: changes
       },
@@ -80,16 +75,17 @@ export class MongoCrud<T extends Document> implements ICrud<T> {
   }
 
   /**
-   * Deletes one entity record from MongoDB by field value and returns the deleted record, or null.
+   * Deletes one entity record matching all criteria fields and returns the deleted
+   * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * @param criteria - Entity fields and values used for the lookup.
    * @returns - Deleted backend-neutral record, or null when not found.
    */
-  async delete<K extends keyof T>(key: K, value: T[K]): Promise<T | null> {
-    const document: WithId<T> | null = await this.collection.findOneAndDelete({
-      [key]: value
-    } as Filter<T>);
+  async delete(criteria: Partial<T>): Promise<T | null> {
+    assertCriteria(criteria);
+    const document: WithId<T> | null = await this.collection.findOneAndDelete(
+      criteria as Filter<T>
+    );
 
     if (!document) {
       return null;
@@ -109,4 +105,5 @@ export class MongoCrud<T extends Document> implements ICrud<T> {
 
     return record as unknown as T;
   }
+
 }

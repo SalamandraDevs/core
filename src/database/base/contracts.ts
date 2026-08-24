@@ -27,27 +27,24 @@ export interface ICrud<T> {
   create(record: T): Promise<T>;
 
   /**
-   * Reads one entity record by field value.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * Reads one entity record matching all criteria fields.
+   * @param criteria - Entity fields and values used for the lookup.
    * @returns - The matching entity record, or null when not found.
    */
-  read<K extends keyof T>(key: K, value: T[K]): Promise<T | null>;
+  read(criteria: Partial<T>): Promise<T | null>;
 
   /**
-   * Updates one entity record by field value.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * Updates one entity record matching all criteria fields.
+   * @param criteria - Entity fields and values used for the lookup.
    * @param changes - Partial entity record with fields to update.
    * @returns - The updated entity record, or null when not found.
    */
-  update<K extends keyof T>(key: K, value: T[K], changes: Partial<T>): Promise<T | null>;
+  update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null>;
 
   /**
-   * Deletes one entity record by field value.
-   * @param key - Entity field used for the lookup.
-   * @param value - Field value to match.
+   * Deletes one entity record matching all criteria fields.
+   * @param criteria - Entity fields and values used for the lookup.
    * @returns - The deleted entity record, or null when not found.
    */
-  delete<K extends keyof T>(key: K, value: T[K]): Promise<T | null>;
+  delete(criteria: Partial<T>): Promise<T | null>;
 }

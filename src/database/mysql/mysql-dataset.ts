@@ -1,4 +1,4 @@
-import { Dataset } from '../dataset.js';
+import { Dataset } from '../base/dataset.js';
 
 /**
  * MySQL index definition used during dataset provisioning.

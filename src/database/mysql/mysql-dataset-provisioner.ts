@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod';
 
-import { DatasetProvisioner } from '../dataset-provisioner.js';
+import { DatasetProvisioner } from '../base/dataset-provisioner.js';
 import type { MySqlIndexDef, MySqlSchema } from './mysql-dataset.js';
 
 /**

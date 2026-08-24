@@ -1,6 +1,6 @@
 import { MongoClient, type Db } from 'mongodb';
 
-import type { IDbConnection } from '../contracts.js';
+import type { IDbConnection } from '../base/contracts.js';
 
 /**
  * MongoDB connection adapter for application bootstrap.
