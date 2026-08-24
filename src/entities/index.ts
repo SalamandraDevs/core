@@ -4,5 +4,5 @@ export type {
   Entity,
   EntityChanges,
   EntityCreateInput,
-  ProtectedEntityKeys
+  EntityProtectedKeys
 } from './types.js';

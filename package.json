@@ -23,6 +23,10 @@
     "./database/mongo": {
       "import": "./dist/database/mongo/index.js",
       "types": "./types/database/mongo/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.js",
+      "types": "./types/utils/index.d.ts"
     }
   },
   "scripts": {

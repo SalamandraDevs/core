@@ -8,7 +8,8 @@ export const entitySchema = z
   .object({
     tenantId: z.string().min(1),
     entityId: z.uuid(),
-    version: z.number().int().min(1),
+    entityType: z.string().min(1),
+    status: z.string().min(1),
     createdAt: z.date(),
     createdBy: z.string().min(1),
     updatedAt: z.date(),

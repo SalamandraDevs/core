@@ -8,9 +8,14 @@ import { entitySchema } from './schema.js';
 export type Entity = z.infer<typeof entitySchema>;
 
 /**
- * Entity fields that entity policy owns and must not change through generic updates.
+ * Entity fields owned by policy and excluded from caller payloads.
  */
-export type ProtectedEntityKeys = 'tenantId' | 'entityId' | 'createdAt' | 'createdBy';
+export type EntityProtectedKeys = keyof Omit<Entity, 'entityType' | 'status'>;
+
+/**
+ * Create payload before policy-owned metadata is applied.
+ */
+export type EntityCreateInput<T extends Entity> = Omit<T, EntityProtectedKeys>;
 
 /**
  * Allowed partial update payload with entity-owned fields forbidden.
@@ -19,10 +24,5 @@ export type ProtectedEntityKeys = 'tenantId' | 'entityId' | 'createdAt' | 'creat
  * while rejecting protected keys at compile time.
  */
 export type EntityChanges<T extends Entity> = Partial<T> & {
-  [K in ProtectedEntityKeys]?: never;
+  [K in EntityProtectedKeys]?: never;
 };
-
-/**
- * Create payload before policy-owned identity and tenant metadata are applied.
- */
-export type EntityCreateInput<T extends Entity> = Omit<T, 'tenantId' | 'entityId'>;

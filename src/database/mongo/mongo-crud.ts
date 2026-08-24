@@ -1,10 +1,5 @@
-import type {
-  Collection,
-  Document,
-  Filter,
-  OptionalUnlessRequiredId,
-  WithId
-} from 'mongodb';
+import type { Collection, Document,  Filter } from 'mongodb';
+import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
 import type { ICrud } from '../contracts.js';
 

@@ -1,12 +1,5 @@
-import type {
-  Connection,
-  ExecuteValues,
-  FieldPacket,
-  Pool,
-  PoolConnection,
-  ResultSetHeader,
-  RowDataPacket
-} from 'mysql2/promise';
+import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import type { ICrud } from '../contracts.js';
 import type { GeneralRecord } from '../types.js';
