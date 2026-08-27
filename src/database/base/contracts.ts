@@ -16,6 +16,11 @@ export interface IDbConnection<THandle> {
 }
 
 /**
+ * Reads one soft-deleted record matching backend-neutral criteria.
+ */
+export type ReadDeleted<T> = (criteria: Partial<T>) => Promise<T | null>;
+
+/**
  * Backend-neutral CRUD contract for one entity record type.
  */
 export interface ICrud<T> {
@@ -48,3 +53,10 @@ export interface ICrud<T> {
    */
   delete(criteria: Partial<T>): Promise<T | null>;
 }
+
+/**
+ * Persistence capability required by the entity policy abstraction.
+ */
+export type EntityCrud<T> = ICrud<T> & {
+  readDeleted: ReadDeleted<T>;
+};

@@ -47,29 +47,35 @@ export class MongoDataset extends Dataset<MongoJSONSchema, MongoIndexDef> {
    * @param datasetName - Collection name that owns the index.
    * @param indexName - Index name to inspect.
    */
-  protected readIndex(
+  protected async readIndex(
     datasetName: string,
     indexName: string
   ): Promise<MongoIndexDef | null> {
-    void datasetName;
-    void indexName;
-    throw new Error('ponytail: scaffold only; implement readIndex later');
+    const indexes: { name?: string }[] = await this.db
+      .collection(datasetName)
+      .listIndexes()
+      .toArray();
+    const exists: boolean = indexes.some((index) => index.name === indexName);
+
+    if (!exists) {
+      return null;
+    }
+
+    return { name: indexName, keys: {} };
   }
 
   /**
-   * Reconciles one collection index with the desired definition.
+   * Creates one collection index.
    * @param datasetName - Collection name that owns the index.
-   * @param current - Current index definition, if any.
    * @param desired - Target index definition.
    */
-  protected reconcileIndex(
+  protected async createIndex(
     datasetName: string,
-    current: MongoIndexDef | null,
     desired: MongoIndexDef
   ): Promise<void> {
-    void datasetName;
-    void current;
-    void desired;
-    throw new Error('ponytail: scaffold only; implement reconcileIndex later');
+    await this.db.collection(datasetName).createIndex(desired.keys, {
+      ...desired.options,
+      name: desired.name
+    });
   }
 }

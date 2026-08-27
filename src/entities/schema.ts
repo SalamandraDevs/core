@@ -14,6 +14,7 @@ export const entitySchema = z
     createdBy: z.string().min(1),
     updatedAt: z.date(),
     updatedBy: z.string().min(1),
-    deletedAt: z.union([z.date(), z.null()])
+    deletedAt: z.union([z.date(), z.null()]),
+    deletedBy: z.union([z.string().min(1), z.null()])
   })
   .strict();

@@ -60,19 +60,13 @@ export class MySqlDataset extends Dataset<MySqlSchema, MySqlIndexDef> {
   }
 
   /**
-   * Reconciles one table index with the desired definition.
+   * Creates one table index.
    * @param datasetName - Table name that owns the index.
-   * @param current - Current index definition, if any.
    * @param desired - Target index definition.
    */
-  protected reconcileIndex(
-    datasetName: string,
-    current: MySqlIndexDef | null,
-    desired: MySqlIndexDef
-  ): Promise<void> {
+  protected createIndex(datasetName: string, desired: MySqlIndexDef): Promise<void> {
     void datasetName;
-    void current;
     void desired;
-    throw new Error('ponytail: scaffold only; implement reconcileIndex later');
+    throw new Error('ponytail: scaffold only; implement createIndex later');
   }
 }

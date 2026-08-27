@@ -1,7 +1,11 @@
 import type { Collection, Filter } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
-import { assertCriteria } from '../../utils/validators.js';
+import {
+  assertCriteria,
+  DUPLICATE_KEY_ERROR_MESSAGE,
+  isMongoDupKeyError
+} from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
 
@@ -25,9 +29,17 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
    * @returns - Stored backend-neutral record without MongoDB `_id`.
    */
   async create(record: T): Promise<T> {
-    await this.collection.insertOne({
-      ...record
-    } as OptionalUnlessRequiredId<T>);
+    try {
+      await this.collection.insertOne({
+        ...record
+      } as OptionalUnlessRequiredId<T>);
+    } catch (error: unknown) {
+      if (isMongoDupKeyError(error)) {
+        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+      }
+
+      throw error;
+    }
 
     return record;
   }
@@ -40,7 +52,28 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
    */
   async read(criteria: Partial<T>): Promise<T | null> {
     assertCriteria(criteria);
-    const document: WithId<T> | null = await this.collection.findOne(criteria as Filter<T>);
+    const document: WithId<T> | null = await this.collection.findOne(
+      criteria as Filter<T>
+    );
+
+    if (!document) {
+      return null;
+    }
+
+    return this.returnRecord(document);
+  }
+
+  /**
+   * Reads one soft-deleted record matching all criteria fields.
+   * @param criteria - Record fields and values used for the lookup.
+   * @returns - The matching soft-deleted record, or null when not found.
+   */
+  async readDeleted(criteria: Partial<T>): Promise<T | null> {
+    assertCriteria(criteria);
+    const document: WithId<T> | null = await this.collection.findOne({
+      ...criteria,
+      deletedAt: { $ne: null }
+    } as Filter<T>);
 
     if (!document) {
       return null;
@@ -59,13 +92,24 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
    */
   async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
     assertCriteria(criteria);
-    const document: WithId<T> | null = await this.collection.findOneAndUpdate(
-      criteria as Filter<T>,
-      {
-        $set: changes
-      },
-      { returnDocument: 'after' }
-    );
+
+    let document: WithId<T> | null;
+
+    try {
+      document = await this.collection.findOneAndUpdate(
+        criteria as Filter<T>,
+        {
+          $set: changes
+        },
+        { returnDocument: 'after' }
+      );
+    } catch (error: unknown) {
+      if (isMongoDupKeyError(error)) {
+        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+      }
+
+      throw error;
+    }
 
     if (!document) {
       return null;
@@ -105,5 +149,4 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
     return record as unknown as T;
   }
-
 }

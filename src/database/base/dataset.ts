@@ -25,7 +25,12 @@ export abstract class Dataset<TSchema, TIndex extends { name: string }> {
         datasetName,
         desiredIndex.name
       );
-      await this.reconcileIndex(datasetName, currentIndex, desiredIndex);
+
+      if (currentIndex !== null) {
+        continue;
+      }
+
+      await this.createIndex(datasetName, desiredIndex);
     }
   }
 
@@ -61,15 +66,10 @@ export abstract class Dataset<TSchema, TIndex extends { name: string }> {
   ): Promise<TIndex | null>;
 
   /**
-   * Reconciles one dataset index with the desired definition.
+   * Creates one dataset index.
    * @param datasetName - Dataset name that owns the index.
-   * @param current - Current index definition, if any.
    * @param desired - Target index definition.
-   * @returns - A promise that resolves when reconciliation completes.
+   * @returns - A promise that resolves when creation completes.
    */
-  protected abstract reconcileIndex(
-    datasetName: string,
-    current: TIndex | null,
-    desired: TIndex
-  ): Promise<void>;
+  protected abstract createIndex(datasetName: string, desired: TIndex): Promise<void>;
 }

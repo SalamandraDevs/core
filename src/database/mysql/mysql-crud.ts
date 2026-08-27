@@ -1,7 +1,11 @@
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-import { assertCriteria } from '../../utils/validators.js';
+import {
+  assertCriteria,
+  DUPLICATE_KEY_ERROR_MESSAGE,
+  isMySqlDupKeyError
+} from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
 
@@ -38,10 +42,18 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       : `INSERT INTO ${this.pool.escapeId(this.tableName)} () VALUES ()`;
 
     // Execute through the pool, binding record values to placeholders.
-    await this.pool.execute<ResultSetHeader>(
-      sql,
-      keys.map((key: string) => record[key] as ExecuteValues)
-    );
+    try {
+      await this.pool.execute<ResultSetHeader>(
+        sql,
+        keys.map((key: string) => record[key] as ExecuteValues)
+      );
+    } catch (error: unknown) {
+      if (isMySqlDupKeyError(error)) {
+        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+      }
+
+      throw error;
+    }
 
     return record;
   }
@@ -57,6 +69,22 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     const record: RowDataPacket | null = await this.findRecord(this.pool, criteria);
 
     // Hide the storage id when a record is found.
+    return record ? this.returnRecord(record) : null;
+  }
+
+  /**
+   * Reads one soft-deleted record matching all criteria fields.
+   * @param criteria - Record fields and values used for the lookup.
+   * @returns - The matching soft-deleted record, or null when not found.
+   */
+  async readDeleted(criteria: Partial<T>): Promise<T | null> {
+    const record: RowDataPacket | null = await this.findRecord(
+      this.pool,
+      criteria,
+      false,
+      true
+    );
+
     return record ? this.returnRecord(record) : null;
   }
 
@@ -93,7 +121,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
         const assignments: string = entries
           .map(([field]: [string, ExecuteValues]) => `${connection.escapeId(field)} = ?`)
           .join(', ');
-        
+
         const sql: string =
           `UPDATE ${connection.escapeId(this.tableName)} SET ${assignments} ` +
           `WHERE ${connection.escapeId('id')} = ?`;
@@ -108,9 +136,10 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       const sql: string =
         `SELECT * FROM ${connection.escapeId(this.tableName)} ` +
         `WHERE ${connection.escapeId('id')} = ? LIMIT 1`;
-      const [updatedRecords]: [RowDataPacket[], FieldPacket[]] =
-        await connection.execute<RowDataPacket[]>(sql, [storedRecord.id]);
-      
+      const [updatedRecords]: [RowDataPacket[], FieldPacket[]] = await connection.execute<
+        RowDataPacket[]
+      >(sql, [storedRecord.id]);
+
       const updatedRecord: RowDataPacket | undefined = updatedRecords.at(0);
 
       if (!updatedRecord) {
@@ -119,11 +148,16 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
       // Persist the transaction and hide the storage id.
       await connection.commit();
-      
+
       return this.returnRecord(updatedRecord);
     } catch (error: unknown) {
       // Undo partial work on any failure.
       await connection.rollback();
+
+      if (isMySqlDupKeyError(error)) {
+        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+      }
+
       throw error;
     } finally {
       // Always return the connection to the pool.
@@ -181,35 +215,39 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
    * @param connection - MySQL connection or pool used for the query.
    * @param criteria - Record fields and values used for the lookup.
    * @param forUpdate - Whether to lock the matching record for update.
+   * @param deletedOnly
    * @returns - Matching stored record, or null when not found.
    */
   private async findRecord(
     connection: Connection,
     criteria: Partial<T>,
-    forUpdate: boolean = false
+    forUpdate: boolean = false,
+    deletedOnly: boolean = false
   ): Promise<RowDataPacket | null> {
     assertCriteria(criteria);
     const entries: [string, unknown][] = Object.entries(criteria);
 
     // Build one compound lookup, adding a transaction lock when requested.
-    const conditions: string = entries
-      .map(([field, value]: [string, unknown]) =>
+    const conditions: string = [
+      ...entries.map(([field, value]: [string, unknown]) =>
         value === null
           ? `${connection.escapeId(field)} IS NULL`
           : `${connection.escapeId(field)} = ?`
-      )
-      .join(' AND ');
+      ),
+      ...(deletedOnly ? [`${connection.escapeId('deletedAt')} IS NOT NULL`] : [])
+    ].join(' AND ');
     const sql: string =
       `SELECT * FROM ${connection.escapeId(this.tableName)} ` +
       `WHERE ${conditions} LIMIT 1` +
-        (forUpdate ? ' FOR UPDATE' : '');
+      (forUpdate ? ' FOR UPDATE' : '');
 
     // Bind non-null lookup values and return only the first match.
     const values: ExecuteValues[] = entries
       .filter(([, value]: [string, unknown]) => value !== null)
       .map(([, value]: [string, unknown]) => value as ExecuteValues);
-    const [records]: [RowDataPacket[], FieldPacket[]] =
-      await connection.execute<RowDataPacket[]>(sql, values);
+    const [records]: [RowDataPacket[], FieldPacket[]] = await connection.execute<
+      RowDataPacket[]
+    >(sql, values);
 
     return records.at(0) ?? null;
   }
