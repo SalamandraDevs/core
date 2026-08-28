@@ -1,10 +1,4 @@
 /**
- * Backend-neutral message for unique constraint violations.
- */
-export const DUPLICATE_KEY_ERROR_MESSAGE: string =
-  'New record conflicts with an existing unique constraint';
-
-/**
  * Asserts criteria is a non-empty plain object (not an array) without undefined values.
  * @param input - Criteria object to validate.
  */

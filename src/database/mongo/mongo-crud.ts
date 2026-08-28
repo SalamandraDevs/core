@@ -1,13 +1,10 @@
 import type { Collection, Filter } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
-import {
-  assertCriteria,
-  DUPLICATE_KEY_ERROR_MESSAGE,
-  isMongoDupKeyError
-} from '../utils.js';
+import { assertCriteria, isMongoDupKeyError } from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
+import { CustomError, errMessages } from '../../runtime/errors.js';
 
 /**
  * MongoDB implementation of the backend-neutral CRUD contract.
@@ -35,10 +32,18 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
       } as OptionalUnlessRequiredId<T>);
     } catch (error: unknown) {
       if (isMongoDupKeyError(error)) {
-        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+        throw new CustomError({
+          name: 'DB_DUPLICATE_KEY_ERROR',
+          message: errMessages.DB_DUPLICATE_KEY,
+          cause: error
+        });
       }
 
-      throw error;
+      throw new CustomError({
+        name: 'MONGO_CRUD_ERROR',
+        message: 'Failed to create MongoDB record',
+        cause: error
+      });
     }
 
     return record;
@@ -86,10 +91,18 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
       );
     } catch (error: unknown) {
       if (isMongoDupKeyError(error)) {
-        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+        throw new CustomError({
+          name: 'DB_DUPLICATE_KEY_ERROR',
+          message: errMessages.DB_DUPLICATE_KEY,
+          cause: error
+        });
       }
 
-      throw error;
+      throw new CustomError({
+        name: 'MONGO_CRUD_ERROR',
+        message: 'Failed to update MongoDB record',
+        cause: error
+      });
     }
 
     if (!document) {

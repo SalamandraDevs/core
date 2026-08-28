@@ -4,9 +4,4 @@ export { DatasetProvisioner } from './base/dataset-provisioner.js';
 export type { GeneralRecord } from './types.js';
 export * from './mongo/index.js';
 export * from './mysql/index.js';
-export {
-  assertCriteria,
-  DUPLICATE_KEY_ERROR_MESSAGE,
-  isMongoDupKeyError,
-  isMySqlDupKeyError
-} from './utils.js';
+export { assertCriteria, isMongoDupKeyError, isMySqlDupKeyError } from './utils.js';

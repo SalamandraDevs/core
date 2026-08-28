@@ -1,13 +1,10 @@
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-import {
-  assertCriteria,
-  DUPLICATE_KEY_ERROR_MESSAGE,
-  isMySqlDupKeyError
-} from '../utils.js';
+import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
+import { CustomError, errMessages } from '../../runtime/errors.js';
 
 /**
  * MySQL implementation of the backend-neutral CRUD contract.
@@ -49,10 +46,18 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       );
     } catch (error: unknown) {
       if (isMySqlDupKeyError(error)) {
-        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+        throw new CustomError({
+          name: 'DB_DUPLICATE_KEY_ERROR',
+          message: errMessages.DB_DUPLICATE_KEY,
+          cause: error
+        });
       }
 
-      throw error;
+      throw new CustomError({
+        name: 'MYSQL_CRUD_ERROR',
+        message: 'Failed to create MySQL record',
+        cause: error
+      });
     }
 
     return record;
@@ -139,10 +144,18 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       await connection.rollback();
 
       if (isMySqlDupKeyError(error)) {
-        throw new Error(DUPLICATE_KEY_ERROR_MESSAGE, { cause: error });
+        throw new CustomError({
+          name: 'DB_DUPLICATE_KEY_ERROR',
+          message: errMessages.DB_DUPLICATE_KEY,
+          cause: error
+        });
       }
 
-      throw error;
+      throw new CustomError({
+        name: 'MYSQL_CRUD_ERROR',
+        message: 'Failed to update MySQL record',
+        cause: error
+      });
     } finally {
       // Always return the connection to the pool.
       connection.release();
@@ -187,7 +200,11 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     } catch (error: unknown) {
       // Undo partial work on any failure.
       await connection.rollback();
-      throw error;
+      throw new CustomError({
+        name: 'MYSQL_CRUD_ERROR',
+        message: 'Failed to delete MySQL record',
+        cause: error
+      });
     } finally {
       // Always return the connection to the pool.
       connection.release();
