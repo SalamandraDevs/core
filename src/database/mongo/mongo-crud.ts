@@ -1,10 +1,10 @@
+import { CustomError, errMessages } from '@slmdevs/tools/shared';
 import type { Collection, Filter } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
 import { assertCriteria, isMongoDupKeyError } from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
-import { CustomError, errMessages } from '../../runtime/errors.js';
 
 /**
  * MongoDB implementation of the backend-neutral CRUD contract.

@@ -1,10 +1,10 @@
+import { CustomError, errMessages } from '@slmdevs/tools/shared';
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
 import type { ICrud } from '../base/contracts.js';
 import type { GeneralRecord } from '../types.js';
-import { CustomError, errMessages } from '../../runtime/errors.js';
 
 /**
  * MySQL implementation of the backend-neutral CRUD contract.
