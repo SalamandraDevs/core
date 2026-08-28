@@ -73,22 +73,6 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Reads one soft-deleted record matching all criteria fields.
-   * @param criteria - Record fields and values used for the lookup.
-   * @returns - The matching soft-deleted record, or null when not found.
-   */
-  async readDeleted(criteria: Partial<T>): Promise<T | null> {
-    const record: RowDataPacket | null = await this.findRecord(
-      this.pool,
-      criteria,
-      false,
-      true
-    );
-
-    return record ? this.returnRecord(record) : null;
-  }
-
-  /**
    * Updates one record matching all criteria fields and returns the updated record, or null.
    * Returns the full stored record without MySQL surrogate `id`; null only when not found.
    * @param criteria - Record fields and values used for the lookup.
@@ -215,14 +199,12 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
    * @param connection - MySQL connection or pool used for the query.
    * @param criteria - Record fields and values used for the lookup.
    * @param forUpdate - Whether to lock the matching record for update.
-   * @param deletedOnly
    * @returns - Matching stored record, or null when not found.
    */
   private async findRecord(
     connection: Connection,
     criteria: Partial<T>,
-    forUpdate: boolean = false,
-    deletedOnly: boolean = false
+    forUpdate: boolean = false
   ): Promise<RowDataPacket | null> {
     assertCriteria(criteria);
     const entries: [string, unknown][] = Object.entries(criteria);
@@ -233,8 +215,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
         value === null
           ? `${connection.escapeId(field)} IS NULL`
           : `${connection.escapeId(field)} = ?`
-      ),
-      ...(deletedOnly ? [`${connection.escapeId('deletedAt')} IS NOT NULL`] : [])
+      )
     ].join(' AND ');
     const sql: string =
       `SELECT * FROM ${connection.escapeId(this.tableName)} ` +

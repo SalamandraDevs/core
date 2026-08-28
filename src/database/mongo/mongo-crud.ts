@@ -64,25 +64,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Reads one soft-deleted record matching all criteria fields.
-   * @param criteria - Record fields and values used for the lookup.
-   * @returns - The matching soft-deleted record, or null when not found.
-   */
-  async readDeleted(criteria: Partial<T>): Promise<T | null> {
-    assertCriteria(criteria);
-    const document: WithId<T> | null = await this.collection.findOne({
-      ...criteria,
-      deletedAt: { $ne: null }
-    } as Filter<T>);
-
-    if (!document) {
-      return null;
-    }
-
-    return this.returnRecord(document);
-  }
-
-  /**
    * Updates one entity record matching all criteria fields and returns the updated
    * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
