@@ -3,7 +3,7 @@ import type { Collection, Filter } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
 import { assertCriteria, isMongoDupKeyError } from '../utils.js';
-import type { ICrud } from '../base/contracts.js';
+import type { ICrud } from '../contracts.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -40,7 +40,7 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'MONGO_CRUD_ERROR',
+        name: 'DB_ADAPTER_ERROR',
         message: 'Failed to create MongoDB record',
         cause: error
       });
@@ -99,7 +99,7 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'MONGO_CRUD_ERROR',
+        name: 'DB_ADAPTER_ERROR',
         message: 'Failed to update MongoDB record',
         cause: error
       });

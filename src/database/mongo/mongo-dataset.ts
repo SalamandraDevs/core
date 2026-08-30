@@ -1,81 +1,109 @@
 import type { Db } from 'mongodb';
 
-import { Dataset } from '../base/dataset.js';
+import { CustomError } from '@slmdevs/tools/shared';
+
+import type { IDataset } from '../contracts.js';
 import type { MongoIndexDef, MongoJSONSchema } from './types.js';
 
 /**
  * MongoDB dataset administration adapter.
  */
-export class MongoDataset extends Dataset<MongoJSONSchema, MongoIndexDef> {
+export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
   /**
    * Creates a Mongo dataset adapter for one connected database.
    * @param db - Connected Mongo database handle.
+   * @returns - A Mongo dataset adapter.
    */
   constructor(private readonly db: Db) {
-    super();
   }
 
   /**
-   * Reads the current JSON schema validator for one collection and returns it, or null.
+   * Checks whether one collection exists.
    * @param name - Collection name to inspect.
+   * @returns - `true` when the collection exists.
    */
-  protected readSchema(name: string): Promise<MongoJSONSchema | null> {
-    void this.db;
-    void name;
-    throw new Error('ponytail: scaffold only; implement readSchema later');
+  async read(name: string): Promise<boolean> {
+    try {
+      return await this.db.listCollections({ name }, { nameOnly: true }).hasNext();
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_DATASET_ERROR',
+        message: `Failed to read MongoDB dataset '${name}'`,
+        cause: error
+      });
+    }
   }
 
   /**
-   * Reconciles one collection schema validator with the desired definition.
-   * @param name - Collection name to reconcile.
-   * @param current - Current schema validator, if any.
-   * @param desired - Target schema validator.
+   * Creates one collection with the desired schema validator.
+   * @param name - Collection name to create.
+   * @param desiredSchema - Target schema validator.
+   * @returns - A promise that resolves when creation completes.
    */
-  protected reconcileSchema(
-    name: string,
-    current: MongoJSONSchema | null,
-    desired: MongoJSONSchema
-  ): Promise<void> {
-    void name;
-    void current;
-    void desired;
-    throw new Error('ponytail: scaffold only; implement reconcileSchema later');
+  async create(name: string, desiredSchema: MongoJSONSchema): Promise<void> {
+    try {
+      await this.db.createCollection(name, desiredSchema);
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_DATASET_ERROR',
+        message: `Failed to create MongoDB dataset '${name}'`,
+        cause: error
+      });
+    }
   }
 
   /**
    * Reads one index definition for a collection and returns it, or null.
    * @param datasetName - Collection name that owns the index.
    * @param indexName - Index name to inspect.
+   * @returns - The current index, or null when it does not exist.
    */
-  protected async readIndex(
+  async readIndex(
     datasetName: string,
     indexName: string
   ): Promise<MongoIndexDef | null> {
-    const indexes: { name?: string }[] = await this.db
-      .collection(datasetName)
-      .listIndexes()
-      .toArray();
-    const exists: boolean = indexes.some((index) => index.name === indexName);
+    try {
+      const indexes: { name?: string }[] = await this.db
+        .collection(datasetName)
+        .listIndexes()
+        .toArray();
+      const exists: boolean = indexes.some((index) => index.name === indexName);
 
-    if (!exists) {
-      return null;
+      if (!exists) {
+        return null;
+      }
+
+      return { name: indexName, keys: {} };
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_DATASET_ERROR',
+        message: `Failed to read index '${indexName}' for MongoDB dataset '${datasetName}'`,
+        cause: error
+      });
     }
-
-    return { name: indexName, keys: {} };
   }
 
   /**
    * Creates one collection index.
    * @param datasetName - Collection name that owns the index.
    * @param desired - Target index definition.
+   * @returns - A promise that resolves when creation completes.
    */
-  protected async createIndex(
+  async createIndex(
     datasetName: string,
     desired: MongoIndexDef
   ): Promise<void> {
-    await this.db.collection(datasetName).createIndex(desired.keys, {
-      ...desired.options,
-      name: desired.name
-    });
+    try {
+      await this.db.collection(datasetName).createIndex(desired.keys, {
+        ...desired.options,
+        name: desired.name
+      });
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_DATASET_ERROR',
+        message: `Failed to create index '${desired.name}' for MongoDB dataset '${datasetName}'`,
+        cause: error
+      });
+    }
   }
 }

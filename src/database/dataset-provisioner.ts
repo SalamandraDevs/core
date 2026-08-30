@@ -1,0 +1,74 @@
+import type { ZodType } from 'zod';
+
+import type { IDataset, SchemaConverter } from './contracts.js';
+
+/**
+ * Provisioning workflow that converts schemas and coordinates dataset setup.
+ */
+export class DatasetProvisioner<
+  TDef extends {
+    name: string;
+    schema: ZodType;
+    indexes: readonly TIndex[];
+  },
+  TSchema,
+  TIndex extends { name: string }
+> {
+  /**
+   * Creates a provisioner for one dataset administration adapter.
+   * @param dataset - Dataset implementation that performs backend operations.
+   * @param convertSchema - Converts a Zod schema into the backend schema format.
+   */
+  constructor(
+    private readonly dataset: IDataset<TSchema, TIndex>,
+    private readonly convertSchema: SchemaConverter<TSchema>
+  ) {}
+
+  /**
+   * Provisions one dataset definition idempotently.
+   * @param def - Dataset definition with schema and indexes.
+   * @returns - A promise that resolves when provisioning completes.
+   */
+  async provision(def: TDef): Promise<void> {
+    const convertedSchema: TSchema = this.convertSchema(def.schema);
+
+    await this.ensureDataset(def.name, convertedSchema);
+    await this.ensureIndexes(def.name, def.indexes);
+  }
+
+  /**
+   * Creates a dataset only when it does not already exist.
+   * @param name - Dataset name to provision.
+   * @param desiredSchema - Backend-specific schema definition.
+   * @returns - A promise that resolves when the dataset exists.
+   */
+  private async ensureDataset(name: string, desiredSchema: TSchema): Promise<void> {
+    const exists: boolean = await this.dataset.read(name);
+
+    if (!exists) {
+      await this.dataset.create(name, desiredSchema);
+    }
+  }
+
+  /**
+   * Creates missing dataset indexes.
+   * @param datasetName - Dataset name that owns the indexes.
+   * @param indexes - Target index definitions.
+   * @returns - A promise that resolves when all indexes exist.
+   */
+  private async ensureIndexes(
+    datasetName: string,
+    indexes: readonly TIndex[]
+  ): Promise<void> {
+    for (const desiredIndex of indexes) {
+      const currentIndex: TIndex | null = await this.dataset.readIndex(
+        datasetName,
+        desiredIndex.name
+      );
+
+      if (currentIndex === null) {
+        await this.dataset.createIndex(datasetName, desiredIndex);
+      }
+    }
+  }
+}

@@ -1,14 +1,7 @@
 import type { CreateIndexesOptions, IndexSpecification } from 'mongodb';
 import type { ZodType } from 'zod';
 
-/**
- * Mongo JSON schema validator wrapper used by dataset provisioning.
- */
-export type MongoJSONSchema = {
-  validator: {
-    $jsonSchema: Record<string, unknown>;
-  };
-};
+export type { MongoJSONSchema } from '@slmdevs/tools/shared';
 
 /**
  * Mongo index definition used during dataset provisioning.

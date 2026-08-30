@@ -3,7 +3,7 @@ import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promis
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
-import type { ICrud } from '../base/contracts.js';
+import type { ICrud } from '../contracts.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -54,7 +54,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'MYSQL_CRUD_ERROR',
+        name: 'DB_ADAPTER_ERROR',
         message: 'Failed to create MySQL record',
         cause: error
       });
@@ -152,7 +152,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'MYSQL_CRUD_ERROR',
+        name: 'DB_ADAPTER_ERROR',
         message: 'Failed to update MySQL record',
         cause: error
       });
@@ -201,7 +201,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       // Undo partial work on any failure.
       await connection.rollback();
       throw new CustomError({
-        name: 'MYSQL_CRUD_ERROR',
+        name: 'DB_ADAPTER_ERROR',
         message: 'Failed to delete MySQL record',
         cause: error
       });

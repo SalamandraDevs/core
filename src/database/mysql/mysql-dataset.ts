@@ -1,4 +1,4 @@
-import { Dataset } from '../base/dataset.js';
+import type { IDataset } from '../contracts.js';
 
 /**
  * MySQL index definition used during dataset provisioning.
@@ -18,31 +18,25 @@ export type MySqlSchema = {
 /**
  * MySQL dataset administration adapter.
  */
-export class MySqlDataset extends Dataset<MySqlSchema, MySqlIndexDef> {
+export class MySqlDataset implements IDataset<MySqlSchema, MySqlIndexDef> {
   /**
-   * Reads the current schema definition for one table and returns it, or null.
+   * Checks whether one table exists.
    * @param name - Table name to inspect.
    */
-  protected readSchema(name: string): Promise<MySqlSchema | null> {
+  read(name: string): Promise<boolean> {
     void name;
-    throw new Error('ponytail: scaffold only; implement readSchema later');
+    throw new Error('ponytail: scaffold only; implement read later');
   }
 
   /**
-   * Reconciles one table schema with the desired definition.
+   * Creates one table with the desired schema.
    * @param name - Table name to reconcile.
-   * @param current - Current schema definition, if any.
    * @param desired - Target schema definition.
    */
-  protected reconcileSchema(
-    name: string,
-    current: MySqlSchema | null,
-    desired: MySqlSchema
-  ): Promise<void> {
+  create(name: string, desired: MySqlSchema): Promise<void> {
     void name;
-    void current;
     void desired;
-    throw new Error('ponytail: scaffold only; implement reconcileSchema later');
+    throw new Error('ponytail: scaffold only; implement create later');
   }
 
   /**
@@ -50,7 +44,7 @@ export class MySqlDataset extends Dataset<MySqlSchema, MySqlIndexDef> {
    * @param datasetName - Table name that owns the index.
    * @param indexName - Index name to inspect.
    */
-  protected readIndex(
+  readIndex(
     datasetName: string,
     indexName: string
   ): Promise<MySqlIndexDef | null> {
@@ -64,7 +58,7 @@ export class MySqlDataset extends Dataset<MySqlSchema, MySqlIndexDef> {
    * @param datasetName - Table name that owns the index.
    * @param desired - Target index definition.
    */
-  protected createIndex(datasetName: string, desired: MySqlIndexDef): Promise<void> {
+  createIndex(datasetName: string, desired: MySqlIndexDef): Promise<void> {
     void datasetName;
     void desired;
     throw new Error('ponytail: scaffold only; implement createIndex later');

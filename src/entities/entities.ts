@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getExecutionCtx } from '../utils/context.js';
-import type { ICrud } from '../database/base/contracts.js';
+import type { ICrud } from '../database/contracts.js';
 import type { Entity, EntityChanges, EntityCreateInput } from './types.js';
 
 /**

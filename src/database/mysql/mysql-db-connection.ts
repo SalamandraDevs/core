@@ -1,4 +1,4 @@
-import type { IDbConnection } from '../base/contracts.js';
+import type { IDbConnection } from '../contracts.js';
 
 /**
  * MySQL connection adapter for application bootstrap.
