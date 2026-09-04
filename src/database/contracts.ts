@@ -41,6 +41,9 @@ export interface ICrud<T> {
   /** Reads one entity record matching all criteria fields. */
   read(criteria: Partial<T>): Promise<T | null>;
 
+  /** Finds entity records matching all criteria fields. */
+  find(criteria: Partial<T>): Promise<T[]>;
+
   /** Updates one entity record matching all criteria fields. */
   update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null>;
 

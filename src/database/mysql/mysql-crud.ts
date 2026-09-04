@@ -78,6 +78,33 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
+   * Finds records matching all criteria fields.
+   * Returned records exclude MySQL's storage-owned surrogate `id` field.
+   * @param criteria - Record fields and values used for the lookup.
+   * @returns - Matching backend-neutral records.
+   */
+  async find(criteria: Partial<T>): Promise<T[]> {
+    assertCriteria(criteria);
+    const entries: [string, unknown][] = Object.entries(criteria);
+    const conditions: string = entries
+      .map(([field, value]: [string, unknown]) =>
+        value === null
+          ? `${this.pool.escapeId(field)} IS NULL`
+          : `${this.pool.escapeId(field)} = ?`
+      )
+      .join(' AND ');
+    const values: ExecuteValues[] = entries
+      .filter(([, value]: [string, unknown]) => value !== null)
+      .map(([, value]: [string, unknown]) => value as ExecuteValues);
+    const sql: string = `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${conditions}`;
+    const [records]: [RowDataPacket[], FieldPacket[]] = await this.pool.execute<
+      RowDataPacket[]
+    >(sql, values);
+
+    return records.map((record: RowDataPacket) => this.returnRecord(record));
+  }
+
+  /**
    * Updates one record matching all criteria fields and returns the updated record, or null.
    * Returns the full stored record without MySQL surrogate `id`; null only when not found.
    * @param criteria - Record fields and values used for the lookup.

@@ -14,8 +14,7 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
    * @param db - Connected Mongo database handle.
    * @returns - A Mongo dataset adapter.
    */
-  constructor(private readonly db: Db) {
-  }
+  constructor(private readonly db: Db) {}
 
   /**
    * Checks whether one collection exists.
@@ -58,10 +57,7 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
    * @param indexName - Index name to inspect.
    * @returns - The current index, or null when it does not exist.
    */
-  async readIndex(
-    datasetName: string,
-    indexName: string
-  ): Promise<MongoIndexDef | null> {
+  async readIndex(datasetName: string, indexName: string): Promise<MongoIndexDef | null> {
     try {
       const indexes: { name?: string }[] = await this.db
         .collection(datasetName)
@@ -89,10 +85,7 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
    * @param desired - Target index definition.
    * @returns - A promise that resolves when creation completes.
    */
-  async createIndex(
-    datasetName: string,
-    desired: MongoIndexDef
-  ): Promise<void> {
+  async createIndex(datasetName: string, desired: MongoIndexDef): Promise<void> {
     try {
       await this.db.collection(datasetName).createIndex(desired.keys, {
         ...desired.options,

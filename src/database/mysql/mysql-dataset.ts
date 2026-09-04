@@ -44,10 +44,7 @@ export class MySqlDataset implements IDataset<MySqlSchema, MySqlIndexDef> {
    * @param datasetName - Table name that owns the index.
    * @param indexName - Index name to inspect.
    */
-  readIndex(
-    datasetName: string,
-    indexName: string
-  ): Promise<MySqlIndexDef | null> {
+  readIndex(datasetName: string, indexName: string): Promise<MySqlIndexDef | null> {
     void datasetName;
     void indexName;
     throw new Error('ponytail: scaffold only; implement readIndex later');

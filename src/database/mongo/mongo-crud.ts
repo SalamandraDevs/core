@@ -69,6 +69,21 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
+   * Finds entity records matching all criteria fields.
+   * Returned records exclude MongoDB's storage-owned `_id` field.
+   * @param criteria - Entity fields and values used for the lookup.
+   * @returns - Matching backend-neutral records.
+   */
+  async find(criteria: Partial<T>): Promise<T[]> {
+    assertCriteria(criteria);
+    const documents: WithId<T>[] = await this.collection
+      .find(criteria as Filter<T>)
+      .toArray();
+
+    return documents.map((document: WithId<T>) => this.returnRecord(document));
+  }
+
+  /**
    * Updates one entity record matching all criteria fields and returns the updated
    * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.

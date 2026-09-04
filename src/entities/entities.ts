@@ -52,6 +52,20 @@ export abstract class Entities<T extends Entity> {
   }
 
   /**
+   * Finds active entity records within the current tenant.
+   * @param criteria - Optional entity fields and values used to filter the records.
+   * @returns - Matching entity records.
+   */
+  find(criteria: Partial<T> = {}): Promise<T[]> {
+    const { tenantId } = getExecutionCtx().authenticated;
+
+    return this.crud.find({
+      ...criteria,
+      tenantId
+    });
+  }
+
+  /**
    * Updates one active entity record by its public identifier within the current tenant.
    * @param entityId - Entity identifier (`entityId`).
    * @param changes - Allowed field changes for the entity record.
