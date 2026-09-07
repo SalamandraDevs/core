@@ -52,6 +52,27 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
   }
 
   /**
+   * Creates one collection index.
+   * @param datasetName - Collection name that owns the index.
+   * @param desired - Target index definition.
+   * @returns - A promise that resolves when creation completes.
+   */
+  async createIndex(datasetName: string, desired: MongoIndexDef): Promise<void> {
+    try {
+      await this.db.collection(datasetName).createIndex(desired.keys, {
+        ...desired.options,
+        name: desired.name
+      });
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_DATASET_ERROR',
+        message: `Failed to create index '${desired.name}' for MongoDB dataset '${datasetName}'`,
+        cause: error
+      });
+    }
+  }
+  
+  /**
    * Reads one index definition for a collection and returns it, or null.
    * @param datasetName - Collection name that owns the index.
    * @param indexName - Index name to inspect.
@@ -74,27 +95,6 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
       throw new CustomError({
         name: 'DB_DATASET_ERROR',
         message: `Failed to read index '${indexName}' for MongoDB dataset '${datasetName}'`,
-        cause: error
-      });
-    }
-  }
-
-  /**
-   * Creates one collection index.
-   * @param datasetName - Collection name that owns the index.
-   * @param desired - Target index definition.
-   * @returns - A promise that resolves when creation completes.
-   */
-  async createIndex(datasetName: string, desired: MongoIndexDef): Promise<void> {
-    try {
-      await this.db.collection(datasetName).createIndex(desired.keys, {
-        ...desired.options,
-        name: desired.name
-      });
-    } catch (error: unknown) {
-      throw new CustomError({
-        name: 'DB_DATASET_ERROR',
-        message: `Failed to create index '${desired.name}' for MongoDB dataset '${datasetName}'`,
         cause: error
       });
     }

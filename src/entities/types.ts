@@ -10,7 +10,7 @@ export type Entity = z.infer<typeof entitySchema>;
 /**
  * Entity fields owned by policy and excluded from caller payloads.
  */
-export type EntityProtectedKeys = keyof Omit<Entity, 'entityType' | 'status'>;
+export type EntityProtectedKeys = keyof Omit<Entity, 'entityName' | 'status'>;
 
 /**
  * Create payload before policy-owned metadata is applied.
