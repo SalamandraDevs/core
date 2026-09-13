@@ -16,3 +16,25 @@ export const entitySchema = z
     updatedBy: z.string().min(1)
   })
   .strict();
+
+/**
+ * Shared Zod schema for entity collection cursor pagination.
+ */
+// eslint-disable-next-line @typescript-eslint/typedef -- schema shape is defined by z.object
+export const entityFindCursorSchema = z
+  .object({
+    createdAt: z.coerce.date(), // INFO: coerce accept non-iso string dates.
+    entityId: z.uuid()
+  })
+  .strict();
+
+/**
+ * Shared Zod schema for entity collection find options.
+ */
+// eslint-disable-next-line @typescript-eslint/typedef -- schema shape is defined by z.object
+export const entityFindOptionsSchema = z
+  .object({
+    cursor: entityFindCursorSchema.nullable(),
+    limit: z.number().int().positive()
+  })
+  .strict();

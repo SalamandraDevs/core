@@ -1,9 +1,10 @@
 import { CustomError, errMessages } from '@slmdevs/tools/shared';
-import type { Collection, Filter } from 'mongodb';
+import type { Collection, Filter, Sort } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
 import { assertCriteria, isMongoDupKeyError } from '../utils.js';
 import type { ICrud } from '../contracts.js';
+import type { FindOptions, FindOrder, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -69,21 +70,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Finds entity records matching all criteria fields.
-   * Returned records exclude MongoDB's storage-owned `_id` field.
-   * @param criteria - Entity fields and values used for the lookup.
-   * @returns - Matching backend-neutral records.
-   */
-  async find(criteria: Partial<T>): Promise<T[]> {
-    assertCriteria(criteria);
-    const documents: WithId<T>[] = await this.collection
-      .find(criteria as Filter<T>)
-      .toArray();
-
-    return documents.map((document: WithId<T>) => this.returnRecord(document));
-  }
-
-  /**
    * Updates one entity record matching all criteria fields and returns the updated
    * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
@@ -145,6 +131,100 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
     }
 
     return this.returnRecord(document);
+  }
+
+  /**
+   * Finds entity records matching all criteria fields and optional page controls.
+   * Returned records exclude MongoDB's storage-owned `_id` field.
+   * @param criteria - Entity fields and values used for the lookup.
+   * @param options - Required cursor and page-size controls.
+   * @returns - Matching backend-neutral records and page metadata.
+   */
+  async find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>> {
+    assertCriteria(criteria);
+    const limit: number = options.limit;
+    const queryLimit: number = limit + 1;
+    const filter: Filter<T> = this.buildFindFilter(
+      criteria,
+      options.cursor,
+      options.orderBy
+    );
+
+    const documents: WithId<T>[] = await this.collection
+      .find(filter)
+      .sort(this.buildSort(options.orderBy))
+      .limit(queryLimit)
+      .toArray();
+
+    const hasNextPage: boolean = documents.length > limit;
+    const returnedDocuments: WithId<T>[] = hasNextPage
+      ? documents.slice(0, limit)
+      : documents;
+
+    return {
+      records: returnedDocuments.map((document: WithId<T>) => this.returnRecord(document)),
+      hasNextPage
+    };
+  }
+
+  /**
+   * Builds a MongoDB filter from backend-neutral exact criteria and cursor options.
+   * @param criteria - Exact field criteria already owned by the caller policy.
+   * @param cursor - Last seen ordered field values used to continue the page.
+   * @param orderBy - Ordered fields that define deterministic cursor continuation.
+   * @returns - MongoDB filter translated from the backend-neutral find inputs.
+   */
+  private buildFindFilter(
+    criteria: Partial<T>,
+    cursor: Partial<T> | null,
+    orderBy: readonly FindOrder[]
+  ): Filter<T> {
+    if (!cursor) {
+      return criteria as Filter<T>;
+    }
+
+    const cursorBranches: Record<string, unknown>[] = [];
+    const precedingCursorValues: Record<string, unknown> = {};
+
+    for (const order of orderBy) {
+      const comparisonOperator: '$gt' | '$lt' =
+        order.direction === 'asc' ? '$gt' : '$lt';
+
+      // A later sort field can continue the page only after all earlier fields tie.
+      cursorBranches.push({
+        ...precedingCursorValues,
+        [order.field]: {
+          [comparisonOperator]: cursor[order.field]
+        }
+      });
+
+      precedingCursorValues[order.field] = cursor[order.field];
+    }
+
+    return {
+      $and: [
+        criteria,
+        {
+          $or: cursorBranches
+        }
+      ]
+    } as Filter<T>;
+  }
+
+  /**
+   * Builds a MongoDB sort document from backend-neutral ordered fields.
+   * @param orderBy - Ordered fields that define deterministic result order.
+   * @returns - MongoDB sort document.
+   */
+  private buildSort(orderBy: readonly FindOrder[]): Sort {
+    const sortEntries: [string, 1 | -1][] = orderBy.map(
+      (order: FindOrder): [string, 1 | -1] => [
+        order.field,
+        order.direction === 'asc' ? 1 : -1
+      ]
+    );
+
+    return Object.fromEntries(sortEntries);
   }
 
   /**

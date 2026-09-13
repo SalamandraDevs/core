@@ -1,14 +1,15 @@
-import type { Db } from 'mongodb';
+import type { Db, IndexSpecification } from 'mongodb';
 
 import { CustomError } from '@slmdevs/tools/shared';
 
 import type { IDataset } from '../contracts.js';
-import type { MongoIndexDef, MongoJSONSchema } from './types.js';
+import type { IndexDef, IndexField } from '../types.js';
+import type { MongoJSONSchema } from './types.js';
 
 /**
  * MongoDB dataset administration adapter.
  */
-export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
+export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
   /**
    * Creates a Mongo dataset adapter for one connected database.
    * @param db - Connected Mongo database handle.
@@ -57,28 +58,30 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
    * @param desired - Target index definition.
    * @returns - A promise that resolves when creation completes.
    */
-  async createIndex(datasetName: string, desired: MongoIndexDef): Promise<void> {
+  async createIndex(datasetName: string, desired: IndexDef): Promise<void> {
     try {
-      await this.db.collection(datasetName).createIndex(desired.keys, {
-        ...desired.options,
+      await this.db.collection(datasetName).createIndex(this.toMongoIndexKeys(desired), {
+        unique: desired.unique,
         name: desired.name
       });
     } catch (error: unknown) {
       throw new CustomError({
         name: 'DB_DATASET_ERROR',
-        message: `Failed to create index '${desired.name}' for MongoDB dataset '${datasetName}'`,
+        message:
+          `Failed to create index '${desired.name}' for MongoDB dataset ` +
+          `'${datasetName}'`,
         cause: error
       });
     }
   }
-  
+
   /**
    * Reads one index definition for a collection and returns it, or null.
    * @param datasetName - Collection name that owns the index.
    * @param indexName - Index name to inspect.
    * @returns - The current index, or null when it does not exist.
    */
-  async readIndex(datasetName: string, indexName: string): Promise<MongoIndexDef | null> {
+  async readIndex(datasetName: string, indexName: string): Promise<IndexDef | null> {
     try {
       const indexes: { name?: string }[] = await this.db
         .collection(datasetName)
@@ -90,7 +93,7 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
         return null;
       }
 
-      return { name: indexName, keys: {} };
+      return { name: indexName, fields: [], unique: false };
     } catch (error: unknown) {
       throw new CustomError({
         name: 'DB_DATASET_ERROR',
@@ -98,5 +101,19 @@ export class MongoDataset implements IDataset<MongoJSONSchema, MongoIndexDef> {
         cause: error
       });
     }
+  }
+
+  /**
+   * Translates backend-neutral index intent to MongoDB driver syntax.
+   * @param desired - Backend-neutral target index definition.
+   * @returns - MongoDB index key document.
+   */
+  private toMongoIndexKeys(desired: IndexDef): IndexSpecification {
+    return Object.fromEntries(
+      desired.fields.map((field: IndexField): [string, 1 | -1] => [
+        field.name,
+        field.direction === 'asc' ? 1 : -1
+      ])
+    );
   }
 }

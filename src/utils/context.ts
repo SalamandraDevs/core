@@ -1,3 +1,4 @@
+import { CustomError } from '@slmdevs/tools/shared';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
@@ -24,31 +25,8 @@ export type ExecutionContext = Readonly<{
 }>;
 
 /**
- * Development placeholder until API middleware establishes real execution context.
+ * Declares an async local storage to handle the execution context.
  */
-export const dummyExecutionCtx: ExecutionContext = {
-  authenticated: {
-    actorId: 'development-actor',
-    tenantId: 'development-tenant'
-  },
-  request: {
-    requestId: 'development-request'
-  }
-};
-
-/**
- * Error thrown when policy code runs outside an established execution context.
- */
-export class MissingExecutionContextError extends Error {
-  /**
-   * Creates a missing execution context error.
-   */
-  constructor() {
-    super('Execution context is not available');
-    this.name = 'MissingExecutionContextError';
-  }
-}
-
 const executionContextStorage: AsyncLocalStorage<ExecutionContext> =
   new AsyncLocalStorage<ExecutionContext>();
 
@@ -71,7 +49,11 @@ export function getExecutionCtx(): ExecutionContext {
   const context: ExecutionContext | undefined = executionContextStorage.getStore();
 
   if (!context) {
-    throw new MissingExecutionContextError();
+    throw new CustomError({
+      name: 'RESOURCE_NOT_FOUND',
+      message: 'Execution context is not available',
+      cause: 'Async local storage could not get the execution context'
+    });
   }
 
   return context;

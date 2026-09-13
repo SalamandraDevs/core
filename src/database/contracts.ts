@@ -1,5 +1,7 @@
 import type { ZodType } from 'zod';
 
+import type { FindOptions, FindResult } from './types.js';
+
 /**
  * Database connection lifecycle contract for one backend handle.
  */
@@ -41,12 +43,12 @@ export interface ICrud<T> {
   /** Reads one entity record matching all criteria fields. */
   read(criteria: Partial<T>): Promise<T | null>;
 
-  /** Finds entity records matching all criteria fields. */
-  find(criteria: Partial<T>): Promise<T[]>;
-
   /** Updates one entity record matching all criteria fields. */
   update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null>;
 
   /** Deletes one entity record matching all criteria fields. */
   delete(criteria: Partial<T>): Promise<T | null>;
+
+  /** Finds entity records matching all criteria fields and required page controls. */
+  find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
 }

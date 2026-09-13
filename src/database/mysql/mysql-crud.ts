@@ -4,6 +4,7 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/prom
 
 import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
 import type { ICrud } from '../contracts.js';
+import type { FindOptions, FindOrder, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -78,30 +79,37 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Finds records matching all criteria fields.
+   * Finds records matching all criteria fields and required page controls.
    * Returned records exclude MySQL's storage-owned surrogate `id` field.
    * @param criteria - Record fields and values used for the lookup.
-   * @returns - Matching backend-neutral records.
+   * @param options - Required ordering, cursor, and page-size controls.
+   * @returns - Matching backend-neutral records and page metadata.
    */
-  async find(criteria: Partial<T>): Promise<T[]> {
+  async find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>> {
     assertCriteria(criteria);
-    const entries: [string, unknown][] = Object.entries(criteria);
-    const conditions: string = entries
-      .map(([field, value]: [string, unknown]) =>
-        value === null
-          ? `${this.pool.escapeId(field)} IS NULL`
-          : `${this.pool.escapeId(field)} = ?`
-      )
-      .join(' AND ');
-    const values: ExecuteValues[] = entries
-      .filter(([, value]: [string, unknown]) => value !== null)
-      .map(([, value]: [string, unknown]) => value as ExecuteValues);
-    const sql: string = `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${conditions}`;
+    const limit: number = options.limit;
+    const queryLimit: number = limit + 1;
+    const filterSql: [string, ExecuteValues[]] = this.buildFindFilter(
+      criteria,
+      options.cursor,
+      options.orderBy
+    );
+    const sql: string =
+      `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${filterSql[0]}` +
+      this.buildSort(options.orderBy) +
+      ' LIMIT ?';
     const [records]: [RowDataPacket[], FieldPacket[]] = await this.pool.execute<
       RowDataPacket[]
-    >(sql, values);
+    >(sql, [...filterSql[1], queryLimit]);
+    const hasNextPage: boolean = records.length > limit;
+    const returnedRecords: RowDataPacket[] = hasNextPage
+      ? records.slice(0, limit)
+      : records;
 
-    return records.map((record: RowDataPacket) => this.returnRecord(record));
+    return {
+      records: returnedRecords.map((record: RowDataPacket) => this.returnRecord(record)),
+      hasNextPage
+    };
   }
 
   /**
@@ -275,6 +283,78 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     >(sql, values);
 
     return records.at(0) ?? null;
+  }
+
+  /**
+   * Builds a MySQL WHERE predicate from exact criteria and cursor options.
+   * @param criteria - Exact field criteria already owned by the caller policy.
+   * @param cursor - Last seen ordered field values used to continue the page.
+   * @param orderBy - Ordered fields that define deterministic cursor continuation.
+   * @returns - SQL predicate text and its bound values.
+   */
+  private buildFindFilter(
+    criteria: Partial<T>,
+    cursor: Partial<T> | null,
+    orderBy: readonly FindOrder[]
+  ): [string, ExecuteValues[]] {
+    const entries: [string, unknown][] = Object.entries(criteria);
+    const criteriaConditions: string[] = entries.map(([field, value]: [string, unknown]) =>
+      value === null
+        ? `${this.pool.escapeId(field)} IS NULL`
+        : `${this.pool.escapeId(field)} = ?`
+    );
+    const values: ExecuteValues[] = entries
+      .filter(([, value]: [string, unknown]) => value !== null)
+      .map(([, value]: [string, unknown]) => value as ExecuteValues);
+
+    if (!cursor) {
+      return [criteriaConditions.join(' AND '), values];
+    }
+
+    const cursorValues: ExecuteValues[] = [];
+    const cursorClauses: string[] = orderBy.map(
+      (order: FindOrder, index: number): string => {
+        const equalityConditions: string[] = orderBy
+          .slice(0, index)
+          .map((previous: FindOrder): string => {
+            cursorValues.push(cursor[previous.field] as ExecuteValues);
+
+            return `${this.pool.escapeId(previous.field)} = ?`;
+          });
+        const comparisonOperator: '>' | '<' = order.direction === 'asc' ? '>' : '<';
+        cursorValues.push(cursor[order.field] as ExecuteValues);
+
+        return [
+          ...equalityConditions,
+          `${this.pool.escapeId(order.field)} ${comparisonOperator} ?`
+        ].join(' AND ');
+      }
+    );
+    const cursorSql: string = cursorClauses
+      .map((clause: string): string => `(${clause})`)
+      .join(' OR ');
+
+    return [
+      `${criteriaConditions.join(' AND ')} AND (${cursorSql})`,
+      [...values, ...cursorValues]
+    ];
+  }
+
+  /**
+   * Builds a MySQL ORDER BY clause from backend-neutral order definitions.
+   * @param orderBy - Ordered fields that define the deterministic result order.
+   * @returns - SQL ORDER BY text.
+   */
+  private buildSort(orderBy: readonly FindOrder[]): string {
+    const orderItems: string = orderBy
+      .map((order: FindOrder): string => {
+        const direction: 'ASC' | 'DESC' = order.direction === 'asc' ? 'ASC' : 'DESC';
+
+        return `${this.pool.escapeId(order.field)} ${direction}`;
+      })
+      .join(', ');
+
+    return ` ORDER BY ${orderItems}`;
   }
 
   /**
