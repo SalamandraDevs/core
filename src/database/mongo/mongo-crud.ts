@@ -10,20 +10,20 @@ import type { GeneralRecord } from '../types.js';
 /**
  * MongoDB implementation of the backend-neutral CRUD contract.
  *
- * Criteria are not verified as unique. Policy layer (e.g. Entities class) must use fields
+ * Criteria are not verified as unique. Record layer (e.g. RecordsHandler class) must use fields
  * backed by appropriate unique constraints when deterministic targeting is required.
  */
 export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Creates a Mongo CRUD adapter for one collection.
-   * @param collection - Mongo collection that stores the entity records.
+   * @param collection - Mongo collection that stores the records.
    */
   constructor(private readonly collection: Collection<T>) {}
 
   /**
-   * Persists one entity record in MongoDB and returns the stored record.
+   * Persists one record in MongoDB and returns the stored record.
    * MongoDB driver generates storage-owned `_id` on a copy so it cannot leak to the caller.
-   * @param record - Complete entity record to store.
+   * @param record - Complete record to store.
    * @returns - Stored backend-neutral record without MongoDB `_id`.
    */
   async create(record: T): Promise<T> {
@@ -51,9 +51,9 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Reads one entity record matching all criteria fields and returns the match, or null.
+   * Reads one record matching all criteria fields and returns the match, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param criteria - Entity fields and values used for the lookup.
+   * @param criteria - BaseRecord fields and values used for the lookup.
    * @returns - Matching backend-neutral record, or null when not found.
    */
   async read(criteria: Partial<T>): Promise<T | null> {
@@ -70,11 +70,11 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Updates one entity record matching all criteria fields and returns the updated
+   * Updates one record matching all criteria fields and returns the updated
    * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param criteria - Entity fields and values used for the lookup.
-   * @param changes - Partial entity record with fields to update.
+   * @param criteria - BaseRecord fields and values used for the lookup.
+   * @param changes - Partial record with fields to update.
    * @returns - Updated backend-neutral record, or null when not found.
    */
   async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
@@ -114,10 +114,10 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Deletes one entity record matching all criteria fields and returns the deleted
+   * Deletes one record matching all criteria fields and returns the deleted
    * record, or null.
    * Returns the full stored document without Mongo `_id`; null only when not found.
-   * @param criteria - Entity fields and values used for the lookup.
+   * @param criteria - BaseRecord fields and values used for the lookup.
    * @returns - Deleted backend-neutral record, or null when not found.
    */
   async delete(criteria: Partial<T>): Promise<T | null> {
@@ -134,9 +134,9 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Finds entity records matching all criteria fields and optional page controls.
+   * Finds records matching all criteria fields and optional page controls.
    * Returned records exclude MongoDB's storage-owned `_id` field.
-   * @param criteria - Entity fields and values used for the lookup.
+   * @param criteria - BaseRecord fields and values used for the lookup.
    * @param options - Required cursor and page-size controls.
    * @returns - Matching backend-neutral records and page metadata.
    */

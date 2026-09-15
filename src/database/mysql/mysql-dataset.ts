@@ -18,6 +18,7 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
   /**
    * Checks whether one table exists.
    * @param name - Table name to inspect.
+   * @returns Whether the table exists.
    */
   async read(name: string): Promise<boolean> {
     try {
@@ -60,6 +61,7 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
    * Reads one index definition for a table and returns it, or null.
    * @param datasetName - Table name that owns the index.
    * @param indexName - Index name to inspect.
+   * @returns Existing index definition, or null when absent.
    */
   async readIndex(datasetName: string, indexName: string): Promise<IndexDef | null> {
     try {

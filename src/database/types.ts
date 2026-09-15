@@ -37,7 +37,7 @@ export type IndexDef = Readonly<{
 /**
  * Backend-neutral dataset definition used by provisioning workflows.
  * - name: Dataset name to create when missing.
- * - schema: Zod schema describing the entity record shape.
+ * - schema: Zod schema describing the record shape.
  * - indexes: Backend-neutral index intent for the dataset.
  */
 export type DatasetDef<TIndex extends { name: string } = IndexDef> = Readonly<{

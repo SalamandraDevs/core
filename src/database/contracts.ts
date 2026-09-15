@@ -34,21 +34,21 @@ export interface IDataset<TSchema, TIndex extends { name: string }> {
 export type SchemaConverter<TSchema> = (schema: ZodType) => TSchema;
 
 /**
- * Backend-neutral CRUD contract for one entity record type.
+ * Backend-neutral CRUD contract for one record type.
  */
 export interface ICrud<T> {
-  /** Persists one entity record. */
+  /** Persists one record. */
   create(record: T): Promise<T>;
 
-  /** Reads one entity record matching all criteria fields. */
+  /** Reads one record matching all criteria fields. */
   read(criteria: Partial<T>): Promise<T | null>;
 
-  /** Updates one entity record matching all criteria fields. */
+  /** Updates one record matching all criteria fields. */
   update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null>;
 
-  /** Deletes one entity record matching all criteria fields. */
+  /** Deletes one record matching all criteria fields. */
   delete(criteria: Partial<T>): Promise<T | null>;
 
-  /** Finds entity records matching all criteria fields and required page controls. */
+  /** Finds records matching all criteria fields and required page controls. */
   find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
 }

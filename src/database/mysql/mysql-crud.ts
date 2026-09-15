@@ -10,14 +10,14 @@ import type { GeneralRecord } from '../types.js';
 /**
  * MySQL implementation of the backend-neutral CRUD contract.
  *
- * Criteria are not verified as unique. Policy layer (e.g. Entities class) must use fields
+ * Criteria are not verified as unique. Record layer (e.g. RecordsHandler class) must use fields
  * backed by appropriate unique constraints when deterministic targeting is required.
  */
 export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Creates a MySQL CRUD adapter for one table.
    * @param pool - MySQL connection pool.
-   * @param tableName - Table that stores the entity records.
+   * @param tableName - Table that stores the records.
    */
   constructor(
     private readonly pool: Pool,

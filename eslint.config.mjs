@@ -1,31 +1,33 @@
+import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier';
 import js from '@eslint/js';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 import jsdoc from 'eslint-plugin-jsdoc';
 
-export default ts.config(
-  js.configs.recommended,
-  ...ts.configs.recommended,
-  ...ts.configs.strictTypeChecked,
-  prettier,
-  jsdoc.configs['flat/recommended-typescript'],
+export default defineConfig(
   {
+    files: ['**/*.{js,ts}'],
+    extends: [
+      js.configs.recommended,
+      ts.configs.recommended,
+      ts.configs.strictTypeChecked,
+      prettier,
+      jsdoc.configs['flat/recommended-typescript']
+    ],
     languageOptions: {
       globals: {
         ...globals.node
       },
+      parser: ts.parser,
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-        parser: ts.parser
+        tsconfigRootDir: import.meta.dirname
       }
     },
     plugins: {
       jsdoc
-    }
-  },
-  {
+    },
     rules: {
       '@typescript-eslint/no-inferrable-types': 'off',
       '@typescript-eslint/typedef': ['error', { variableDeclaration: true }],
@@ -55,6 +57,12 @@ export default ts.config(
       ],
       'no-console': 'warn',
       'jsdoc/check-indentation': 'off'
+    }
+  },
+  {
+    files: ['**/schema.ts', '**/schemas.ts', '**/schemas/*.ts'],
+    rules: {
+      '@typescript-eslint/typedef': 'off'
     }
   }
 );

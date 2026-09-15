@@ -1,9 +1,9 @@
 {
   "name": "@slmdevs/core",
   "version": "0.1.0",
-  "description": "Shared entity and database contracts",
+  "description": "Shared record layer and database contracts",
   "type": "module",
-  "packageManager": "pnpm@11.21.0",
+  "packageManager": "pnpm@12.4.1",
   "engines": {
     "node": ">=22"
   },
