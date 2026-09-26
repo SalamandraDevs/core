@@ -1,19 +1,14 @@
-import type { ZodType } from 'zod';
-
-import type { IDataset, SchemaConverter } from './contracts.js';
+import type { IDataset, IDatasetProvisioner, SchemaConverter } from './contracts.js';
+import type { DatasetDef } from './types.js';
 
 /**
  * Provisioning workflow that converts schemas and coordinates dataset setup.
  */
 export class DatasetProvisioner<
-  TDef extends {
-    name: string;
-    schema: ZodType;
-    indexes: readonly TIndex[];
-  },
+  TDef extends DatasetDef<TIndex>,
   TSchema,
   TIndex extends { name: string }
-> {
+> implements IDatasetProvisioner<TDef> {
   /**
    * Creates a provisioner for one dataset administration adapter.
    * @param dataset - Dataset implementation that performs backend operations.

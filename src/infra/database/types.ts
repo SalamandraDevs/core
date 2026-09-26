@@ -1,3 +1,5 @@
+import type { Db } from 'mongodb';
+import type { Pool } from 'mysql2/promise';
 import type { ZodType } from 'zod';
 
 /**
@@ -6,6 +8,20 @@ import type { ZodType } from 'zod';
 export type GeneralRecord = {
   [key: string]: unknown;
 };
+
+/**
+ * Backend adapter family selected by a composition root.
+ */
+export type DatabaseBackend = 'mongodb' | 'mysql';
+
+/**
+ * Connected database handle tagged by its backend family.
+ * - backend: Selected backend adapter family.
+ * - db: Connected MongoDB database handle, present for the mongodb backend.
+ * - pool: Connected MySQL connection pool, present for the mysql backend.
+ */
+export type DatabaseHandle =
+  Readonly<{ backend: 'mongodb'; db: Db }> | Readonly<{ backend: 'mysql'; pool: Pool }>;
 
 /**
  * Backend-neutral index direction used by dataset provisioning.

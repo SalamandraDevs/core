@@ -1,6 +1,33 @@
 import type { ZodType } from 'zod';
 
+import type { DatabaseBackend, DatabaseHandle } from './types.js';
 import type { FindOptions, FindResult } from './types.js';
+
+/**
+ * Backend-neutral database provider that owns one connection lifecycle.
+ */
+export interface IDatabaseProvider {
+  /** Backend adapter family this provider connects to. */
+  readonly backend: DatabaseBackend;
+
+  /**
+   * Opens the underlying connection and caches its backend-tagged handle.
+   * @returns The connected database handle.
+   */
+  connect(): Promise<DatabaseHandle>;
+
+  /**
+   * Returns the connected, backend-tagged database handle.
+   * @returns Connected database handle.
+   */
+  getHandle(): DatabaseHandle;
+
+  /**
+   * Closes the underlying database connection.
+   * @returns A promise that resolves when the connection is closed.
+   */
+  close(): Promise<void>;
+}
 
 /**
  * Database connection lifecycle contract for one backend handle.
@@ -30,9 +57,6 @@ export interface IDataset<TSchema, TIndex extends { name: string }> {
   createIndex(datasetName: string, desired: TIndex): Promise<void>;
 }
 
-/** Converts a Zod schema into a backend-specific schema definition. */
-export type SchemaConverter<TSchema> = (schema: ZodType) => TSchema;
-
 /**
  * Backend-neutral CRUD contract for one record type.
  */
@@ -51,4 +75,19 @@ export interface ICrud<T> {
 
   /** Finds records matching all criteria fields and required page controls. */
   find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
+}
+
+/** Converts a Zod schema into a backend-specific schema definition. */
+export type SchemaConverter<TSchema> = (schema: ZodType) => TSchema;
+
+/**
+ * Provisioning contract that idempotently sets up dataset definitions.
+ */
+export interface IDatasetProvisioner<TDef> {
+  /**
+   * Provisions one dataset definition idempotently.
+   * @param def - Dataset definition with schema and indexes.
+   * @returns A promise that resolves when provisioning completes.
+   */
+  provision(def: TDef): Promise<void>;
 }
