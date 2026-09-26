@@ -1,4 +1,4 @@
-import type { IndexDef } from '../database/types.js';
+import type { IndexDef } from '../infra/database/types.js';
 
 /**
  * Platform index for tenant-scoped record identity lookups and mutations.

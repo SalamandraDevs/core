@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { getExecutionCtx } from '../utils/context.js';
-import type { ICrud } from '../database/contracts.js';
-import type { FindOptions, FindOrder, FindResult } from '../database/types.js';
+import type { ICrud } from '../infra/database/contracts.js';
+import type { FindOptions, FindOrder, FindResult } from '../infra/database/types.js';
 import type { BaseRecord, RecordChanges, RecordCreateInput } from './types.js';
 import type { RecordFindOptions } from './types.js';
 

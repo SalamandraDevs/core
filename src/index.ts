@@ -1,3 +1,3 @@
-export * from './records/index.js';
-export * from './database/index.js';
+export * from './storage/index.js';
+export * from './infra/database/index.js';
 export * from './utils/index.js';
