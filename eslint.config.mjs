@@ -56,7 +56,8 @@ export default defineConfig(
         }
       ],
       'no-console': 'warn',
-      'jsdoc/check-indentation': 'off'
+      'jsdoc/check-indentation': 'off',
+      'jsdoc/check-tag-names': ['warn', { definedTags: ['group'] }]
     }
   },
   {

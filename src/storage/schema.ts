@@ -10,6 +10,11 @@ import { z } from 'zod';
  * - createdBy: Actor recorded as the record creator.
  * - updatedAt: Last update timestamp assigned by record policy.
  * - updatedBy: Actor recorded as the last updater.
+ * @remarks
+ * The runtime source of truth for {@link BaseRecord}; `.strict()` rejects unknown keys so
+ * stored documents cannot carry fields outside this contract.
+ * @group Storage
+ * @category Storage
  */
 export const baseRecordSchema = z
   .object({
@@ -28,6 +33,11 @@ export const baseRecordSchema = z
  * Cursor schema used by tenant-scoped record collection pagination.
  * - createdAt: Last returned creation timestamp in the current page.
  * - recordId: Last returned record identifier used as the timestamp tie-breaker.
+ * @remarks
+ * Runtime source of truth for {@link RecordFindCursor}. `createdAt` is coerced so a serialized
+ * (non-ISO) cursor string round-trips back into a `Date`.
+ * @group Storage
+ * @category Storage
  */
 export const recordFindCursorSchema = z
   .object({
@@ -40,6 +50,11 @@ export const recordFindCursorSchema = z
  * Shared Zod schema for record collection find options.
  * - cursor: Continuation point from the previous record page, or null for the first page.
  * - limit: Maximum records returned to the caller.
+ * @remarks
+ * Runtime source of truth for {@link RecordFindOptions}; `limit` must be a positive integer and
+ * a `null` cursor requests the first page.
+ * @group Storage
+ * @category Storage
  */
 export const recordFindOptionsSchema = z
   .object({

@@ -7,6 +7,13 @@ import type { MySqlSchema } from './types.js';
 
 /**
  * MySQL dataset administration adapter.
+ * @remarks
+ * The MySQL {@link IDataset} used by {@link DatasetProvisioner}: it inspects `information_schema`
+ * for table and index existence and issues DDL to create what is missing, wrapping every driver
+ * failure as a `DB_DATASET_ERROR`. Unlike the Mongo adapter, `readIndex` reconstructs the full
+ * index definition (fields, direction, and uniqueness) from catalog rows.
+ * @group Database
+ * @category Database
  */
 export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
   /**
@@ -19,6 +26,7 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
    * Checks whether one table exists.
    * @param name - Table name to inspect.
    * @returns Whether the table exists.
+   * @throws {CustomError} DB_DATASET_ERROR when the existence check fails.
    */
   async read(name: string): Promise<boolean> {
     try {
@@ -44,6 +52,8 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
    * Creates one table with the desired schema.
    * @param name - Table name to reconcile.
    * @param desired - Target schema definition.
+   * @returns A promise that resolves when creation completes.
+   * @throws {CustomError} DB_DATASET_ERROR when table creation fails.
    */
   async create(name: string, desired: MySqlSchema): Promise<void> {
     try {
@@ -62,6 +72,11 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
    * @param datasetName - Table name that owns the index.
    * @param indexName - Index name to inspect.
    * @returns Existing index definition, or null when absent.
+   * @throws {CustomError} DB_DATASET_ERROR when reading the index catalog fails.
+   * @remarks
+   * Reconstructs the definition from `information_schema.statistics`, ordering fields by
+   * `seq_in_index`, mapping the `D` collation to descending, and treating the index as unique
+   * only when every catalog row reports `non_unique = 0`.
    */
   async readIndex(datasetName: string, indexName: string): Promise<IndexDef | null> {
     try {
@@ -99,6 +114,11 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
    * Creates one table index.
    * @param datasetName - Table name that owns the index.
    * @param desired - Target index definition.
+   * @returns A promise that resolves when creation completes or is skipped.
+   * @throws {CustomError} DB_DATASET_ERROR when index creation fails.
+   * @remarks
+   * Skips creation silently when the table is missing any indexed column, since the MySQL schema
+   * converter does not yet emit entity columns; the index is created once those columns exist.
    */
   async createIndex(datasetName: string, desired: IndexDef): Promise<void> {
     try {
@@ -136,7 +156,7 @@ export class MySqlDataset implements IDataset<MySqlSchema, IndexDef> {
   /**
    * Reads column names for one table.
    * @param datasetName - Table whose columns should be inspected.
-   * @returns - Set of current column names.
+   * @returns Set of current column names.
    */
   private async readColumnNames(datasetName: string): Promise<Set<string>> {
     const [rows]: [RowDataPacket[], FieldPacket[]] = await this.pool.execute<

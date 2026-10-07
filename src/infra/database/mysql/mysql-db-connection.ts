@@ -5,6 +5,12 @@ import type { IDbConnection } from '../contracts.js';
 
 /**
  * MySQL connection adapter for application bootstrap.
+ * @remarks
+ * The MySQL {@link IDbConnection}. `connect` creates the pool and issues a `SELECT 1` so a
+ * connection failure surfaces during bootstrap rather than on the first query; `close` ends the
+ * pool and is a no-op when never connected. {@link DatabaseProvider} owns its lifecycle.
+ * @group Database
+ * @category Database
  */
 export class MySqlDbConnection implements IDbConnection<Pool> {
   private pool: Pool | null = null;
@@ -21,7 +27,7 @@ export class MySqlDbConnection implements IDbConnection<Pool> {
 
   /**
    * Opens the MySQL connection and returns the backend handle.
-   * @returns - Connected MySQL backend handle.
+   * @returns Connected MySQL backend handle.
    */
   async connect(): Promise<Pool> {
     this.pool = createPool({
@@ -36,7 +42,7 @@ export class MySqlDbConnection implements IDbConnection<Pool> {
 
   /**
    * Closes the MySQL connection.
-   * @returns - A promise that resolves when the connection is closed.
+   * @returns A promise that resolves when the connection is closed.
    */
   async close(): Promise<void> {
     if (!this.pool) {

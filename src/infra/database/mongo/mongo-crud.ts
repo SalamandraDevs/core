@@ -8,10 +8,17 @@ import type { FindOptions, FindOrder, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
- * MongoDB implementation of the backend-neutral CRUD contract.
- *
- * Criteria are not verified as unique. Record layer (e.g. RecordsHandler class) must use fields
- * backed by appropriate unique constraints when deterministic targeting is required.
+ * MongoDB implementation of the backend-neutral {@link ICrud} contract.
+ * @remarks
+ * Criteria are not verified as unique: the single-record operations act on the first match, so
+ * the record layer (for example {@link RecordsHandler}) must target fields backed by a unique
+ * index when deterministic addressing is required. Every returned record is stripped of the
+ * storage-owned `_id`, keeping the surface backend-neutral, and `find` implements keyset
+ * pagination over the requested order. Duplicate-key violations are re-classified as
+ * `DB_DUPLICATE_KEY_ERROR`; other driver failures become `DB_ADAPTER_ERROR`.
+ * @template T - Record shape stored in the collection.
+ * @group Database
+ * @category Database
  */
 export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
@@ -22,9 +29,13 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Persists one record in MongoDB and returns the stored record.
-   * MongoDB driver generates storage-owned `_id` on a copy so it cannot leak to the caller.
    * @param record - Complete record to store.
-   * @returns - Stored backend-neutral record without MongoDB `_id`.
+   * @returns Stored backend-neutral record without MongoDB `_id`.
+   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the insert violates a unique index.
+   * @throws {CustomError} DB_ADAPTER_ERROR when the insert fails for any other reason.
+   * @remarks
+   * The driver assigns the storage-owned `_id` to a spread copy, so it never leaks back onto the
+   * caller's record instance.
    */
   async create(record: T): Promise<T> {
     try {
@@ -52,9 +63,9 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Reads one record matching all criteria fields and returns the match, or null.
-   * Returns the full stored document without Mongo `_id`; null only when not found.
    * @param criteria - BaseRecord fields and values used for the lookup.
-   * @returns - Matching backend-neutral record, or null when not found.
+   * @returns Matching backend-neutral record without Mongo `_id`, or `null` when none matches.
+   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
    */
   async read(criteria: Partial<T>): Promise<T | null> {
     assertCriteria(criteria);
@@ -70,12 +81,16 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Updates one record matching all criteria fields and returns the updated
-   * record, or null.
-   * Returns the full stored document without Mongo `_id`; null only when not found.
+   * Updates one record matching all criteria fields and returns the updated record, or null.
    * @param criteria - BaseRecord fields and values used for the lookup.
    * @param changes - Partial record with fields to update.
-   * @returns - Updated backend-neutral record, or null when not found.
+   * @returns Updated backend-neutral record without Mongo `_id`, or `null` when none matches.
+   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the update violates a unique index.
+   * @throws {CustomError} DB_ADAPTER_ERROR when the update fails for any other reason.
+   * @remarks
+   * Applies `changes` with `$set` and returns the post-update document, so the caller observes
+   * the persisted state rather than its requested changes.
    */
   async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
     assertCriteria(criteria);
@@ -114,11 +129,10 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Deletes one record matching all criteria fields and returns the deleted
-   * record, or null.
-   * Returns the full stored document without Mongo `_id`; null only when not found.
+   * Deletes one record matching all criteria fields and returns the deleted record, or null.
    * @param criteria - BaseRecord fields and values used for the lookup.
-   * @returns - Deleted backend-neutral record, or null when not found.
+   * @returns Deleted backend-neutral record without Mongo `_id`, or `null` when none matches.
+   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
    */
   async delete(criteria: Partial<T>): Promise<T | null> {
     assertCriteria(criteria);
@@ -135,10 +149,13 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Finds records matching all criteria fields and optional page controls.
-   * Returned records exclude MongoDB's storage-owned `_id` field.
    * @param criteria - BaseRecord fields and values used for the lookup.
    * @param options - Required cursor and page-size controls.
-   * @returns - Matching backend-neutral records and page metadata.
+   * @returns Matching backend-neutral records (without `_id`) and page metadata.
+   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+   * @remarks
+   * Over-fetches one row beyond `limit` to compute `hasNextPage` without a second count query,
+   * then drops the extra row from the returned page.
    */
   async find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>> {
     assertCriteria(criteria);
@@ -172,7 +189,7 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
    * @param criteria - Exact field criteria already owned by the caller policy.
    * @param cursor - Last seen ordered field values used to continue the page.
    * @param orderBy - Ordered fields that define deterministic cursor continuation.
-   * @returns - MongoDB filter translated from the backend-neutral find inputs.
+   * @returns MongoDB filter translated from the backend-neutral find inputs.
    */
   private buildFindFilter(
     criteria: Partial<T>,
@@ -214,7 +231,7 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Builds a MongoDB sort document from backend-neutral ordered fields.
    * @param orderBy - Ordered fields that define deterministic result order.
-   * @returns - MongoDB sort document.
+   * @returns MongoDB sort document.
    */
   private buildSort(orderBy: readonly FindOrder[]): Sort {
     const sortEntries: [string, 1 | -1][] = orderBy.map(
@@ -230,7 +247,7 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Removes MongoDB storage identity from one returned document.
    * @param document - Full MongoDB document including storage-owned `_id`.
-   * @returns - Backend-neutral record without MongoDB `_id`.
+   * @returns Backend-neutral record without MongoDB `_id`.
    */
   private returnRecord(document: WithId<T>): T {
     const { _id: mongoId, ...record } = document;
