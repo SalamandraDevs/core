@@ -3,8 +3,10 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
  * Trusted authenticated request identity.
- * - actorId: Authenticated actor attributed as the author of record mutations.
- * - tenantId: Tenant boundary scoping every record operation.
+ *
+ * - ActorId: Authenticated actor attributed as the author of record mutations.
+ * - TenantId: Tenant boundary scoping every record operation.
+ *
  * @group Utils
  * @category Execution Context
  */
@@ -15,7 +17,9 @@ export type AuthenticatedContext = Readonly<{
 
 /**
  * Per-request tracing metadata.
- * - requestId: Correlation identifier carried through logs for one request or job.
+ *
+ * - RequestId: Correlation identifier carried through logs for one request or job.
+ *
  * @group Utils
  * @category Execution Context
  */
@@ -25,8 +29,10 @@ export type RequestContext = Readonly<{
 
 /**
  * Request-scoped execution metadata established by transport middleware.
- * - authenticated: Trusted identity for the current request or job.
- * - request: Tracing metadata for the current request or job.
+ *
+ * - Authenticated: Trusted identity for the current request or job.
+ * - Request: Tracing metadata for the current request or job.
+ *
  * @remarks
  * Bound to the async scope by {@link runWithExecutionCtx} and retrieved by
  * {@link getExecutionCtx}, so downstream policy code such as {@link RecordsHandler} reads the
@@ -45,15 +51,17 @@ const executionContextStorage: AsyncLocalStorage<ExecutionContext> =
 
 /**
  * Runs one callback with the supplied execution context bound to the current async scope.
+ *
+ * @remarks
+ * The context is visible to every asynchronous operation started within `callback` and is
+ * torn down when it returns, so nested calls to {@link getExecutionCtx} resolve the same
+ * identity without explicit propagation. Transport middleware wraps request handling in
+ * this call.
+ * @group Utils
+ * @category Execution Context
  * @param context - Execution context for the current request or job.
  * @param callback - Work executed while the context is available.
  * @returns The callback return value.
- * @remarks
- * The context is visible to every asynchronous operation started within `callback` and is torn
- * down when it returns, so nested calls to {@link getExecutionCtx} resolve the same identity
- * without explicit propagation. Transport middleware wraps request handling in this call.
- * @group Utils
- * @category Execution Context
  */
 export function runWithExecutionCtx<T>(context: ExecutionContext, callback: () => T): T {
   return executionContextStorage.run(context, callback);
@@ -61,11 +69,12 @@ export function runWithExecutionCtx<T>(context: ExecutionContext, callback: () =
 
 /**
  * Reads the current execution context.
- * @returns The active {@link ExecutionContext} for the current async scope.
- * @throws {CustomError} RESOURCE_NOT_FOUND when called outside a {@link runWithExecutionCtx}
- * scope, so no context is bound.
+ *
  * @group Utils
  * @category Execution Context
+ * @returns The active {@link ExecutionContext} for the current async scope.
+ * @throws {CustomError} RESOURCE_NOT_FOUND when called outside a {@link runWithExecutionCtx}
+ *   scope, so no context is bound.
  */
 export function getExecutionCtx(): ExecutionContext {
   const context: ExecutionContext | undefined = executionContextStorage.getStore();

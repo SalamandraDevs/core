@@ -9,21 +9,24 @@ import type { GeneralRecord } from '../types.js';
 
 /**
  * MySQL implementation of the backend-neutral {@link ICrud} contract.
+ *
  * @remarks
- * Criteria are not verified as unique: operations act on the first match, so the record layer
- * (for example {@link RecordsHandler}) must target fields backed by a unique constraint when
- * deterministic addressing is required. Statements bind values through placeholders and escape
- * identifiers, so criteria and column names cannot inject SQL. `update` and `delete` run in a
- * transaction that locks the target row with `FOR UPDATE` and then mutates it by its stable
- * surrogate `id`, which is stripped from every returned record. Duplicate-key violations are
- * re-classified as `DB_DUPLICATE_KEY_ERROR`; other driver failures become `DB_ADAPTER_ERROR`.
- * @template T - Record shape stored in the table.
- * @group Database
+ * Criteria are not verified as unique: operations act on the first match, so the record
+ * layer (for example {@link RecordsHandler}) must target fields backed by a unique
+ * constraint when deterministic addressing is required. Statements bind values through
+ * placeholders and escape identifiers, so criteria and column names cannot inject SQL.
+ * `update` and `delete` run in a transaction that locks the target row with `FOR UPDATE`
+ * and then mutates it by its stable surrogate `id`, which is stripped from every returned
+ * record. Duplicate-key violations are re-classified as `DB_DUPLICATE_KEY_ERROR`; other
+ * driver failures become `DB_BACKEND_ERROR`.
+ * @group Infra
  * @category Database
+ * @template T - Record shape stored in the table.
  */
 export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Creates a MySQL CRUD adapter for one table.
+   *
    * @param pool - MySQL connection pool.
    * @param tableName - Table that stores the records.
    */
@@ -34,13 +37,15 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Persists one record in MySQL and returns the stored record.
+   *
+   * @remarks
+   * The database may assign an `AUTO_INCREMENT` surrogate `id`, which stays in storage and
+   * is never attached to the returned record.
    * @param record - Complete record to store.
    * @returns Stored backend-neutral record without MySQL surrogate `id`.
-   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the insert violates a unique constraint.
-   * @throws {CustomError} DB_ADAPTER_ERROR when the insert fails for any other reason.
-   * @remarks
-   * The database may assign an `AUTO_INCREMENT` surrogate `id`, which stays in storage and is
-   * never attached to the returned record.
+   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the insert violates a unique
+   *   constraint.
+   * @throws {CustomError} DB_BACKEND_ERROR when the insert fails for any other reason.
    */
   async create(record: T): Promise<T> {
     // Build INSERT with escaped identifiers and placeholders for values.
@@ -67,7 +72,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'DB_ADAPTER_ERROR',
+        name: 'DB_BACKEND_ERROR',
         message: 'Failed to create MySQL record',
         cause: error
       });
@@ -78,8 +83,10 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Reads one record matching all criteria fields and returns the match, or null.
+   *
    * @param criteria - Record fields and values used for the lookup.
-   * @returns Matching backend-neutral record without surrogate `id`, or `null` when none matches.
+   * @returns Matching backend-neutral record without surrogate `id`, or `null` when none
+   *   matches.
    * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
    */
   async read(criteria: Partial<T>): Promise<T | null> {
@@ -92,13 +99,14 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Finds records matching all criteria fields and required page controls.
+   *
+   * @remarks
+   * Selects one row beyond `limit` to derive `hasNextPage` without a second count query,
+   * then trims the extra row from the returned page.
    * @param criteria - Record fields and values used for the lookup.
    * @param options - Required ordering, cursor, and page-size controls.
    * @returns Matching backend-neutral records (without surrogate `id`) and page metadata.
    * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
-   * @remarks
-   * Selects one row beyond `limit` to derive `hasNextPage` without a second count query, then
-   * trims the extra row from the returned page.
    */
   async find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>> {
     assertCriteria(criteria);
@@ -128,17 +136,22 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Updates one record matching all criteria fields and returns the updated record, or null.
+   * Updates one record matching all criteria fields and returns the updated record, or
+   * null.
+   *
+   * @remarks
+   * Runs in a transaction: it locks the matching row with `FOR UPDATE`, applies `changes`
+   * by the row's surrogate `id`, then reloads and returns the persisted row so the caller
+   * observes the committed state. Any failure rolls back and the pooled connection is
+   * always released.
    * @param criteria - Record fields and values used for the lookup.
    * @param changes - Partial record with fields to update.
-   * @returns Updated backend-neutral record without surrogate `id`, or `null` when none matches.
+   * @returns Updated backend-neutral record without surrogate `id`, or `null` when none
+   *   matches.
    * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
-   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the update violates a unique constraint.
-   * @throws {CustomError} DB_ADAPTER_ERROR when the update fails for any other reason.
-   * @remarks
-   * Runs in a transaction: it locks the matching row with `FOR UPDATE`, applies `changes` by the
-   * row's surrogate `id`, then reloads and returns the persisted row so the caller observes the
-   * committed state. Any failure rolls back and the pooled connection is always released.
+   * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the update violates a unique
+   *   constraint.
+   * @throws {CustomError} DB_BACKEND_ERROR when the update fails for any other reason.
    */
   async update(criteria: Partial<T>, changes: Partial<T>): Promise<T | null> {
     // Reserve one connection for the complete transaction.
@@ -208,7 +221,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       }
 
       throw new CustomError({
-        name: 'DB_ADAPTER_ERROR',
+        name: 'DB_BACKEND_ERROR',
         message: 'Failed to update MySQL record',
         cause: error
       });
@@ -219,15 +232,18 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
-   * Deletes one record matching all criteria fields and returns the deleted record, or null.
-   * @param criteria - Record fields and values used for the lookup.
-   * @returns Deleted backend-neutral record without surrogate `id`, or `null` when none matches.
-   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
-   * @throws {CustomError} DB_ADAPTER_ERROR when the delete fails.
+   * Deletes one record matching all criteria fields and returns the deleted record, or
+   * null.
+   *
    * @remarks
    * Runs in a transaction: it locks the matching row with `FOR UPDATE`, deletes it by its
-   * surrogate `id`, and returns the row as it existed before deletion. Any failure rolls back and
-   * the pooled connection is always released.
+   * surrogate `id`, and returns the row as it existed before deletion. Any failure rolls
+   * back and the pooled connection is always released.
+   * @param criteria - Record fields and values used for the lookup.
+   * @returns Deleted backend-neutral record without surrogate `id`, or `null` when none
+   *   matches.
+   * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+   * @throws {CustomError} DB_BACKEND_ERROR when the delete fails.
    */
   async delete(criteria: Partial<T>): Promise<T | null> {
     // Reserve one connection for the complete transaction.
@@ -262,7 +278,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       // Undo partial work on any failure.
       await connection.rollback();
       throw new CustomError({
-        name: 'DB_ADAPTER_ERROR',
+        name: 'DB_BACKEND_ERROR',
         message: 'Failed to delete MySQL record',
         cause: error
       });
@@ -274,6 +290,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Finds one stored record matching all criteria fields.
+   *
    * @param connection - MySQL connection or pool used for the query.
    * @param criteria - Record fields and values used for the lookup.
    * @param forUpdate - Whether to lock the matching record for update.
@@ -313,6 +330,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Builds a MySQL WHERE predicate from exact criteria and cursor options.
+   *
    * @param criteria - Exact field criteria already owned by the caller policy.
    * @param cursor - Last seen ordered field values used to continue the page.
    * @param orderBy - Ordered fields that define deterministic cursor continuation.
@@ -324,10 +342,11 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     orderBy: readonly FindOrder[]
   ): [string, ExecuteValues[]] {
     const entries: [string, unknown][] = Object.entries(criteria);
-    const criteriaConditions: string[] = entries.map(([field, value]: [string, unknown]) =>
-      value === null
-        ? `${this.pool.escapeId(field)} IS NULL`
-        : `${this.pool.escapeId(field)} = ?`
+    const criteriaConditions: string[] = entries.map(
+      ([field, value]: [string, unknown]) =>
+        value === null
+          ? `${this.pool.escapeId(field)} IS NULL`
+          : `${this.pool.escapeId(field)} = ?`
     );
     const values: ExecuteValues[] = entries
       .filter(([, value]: [string, unknown]) => value !== null)
@@ -368,6 +387,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Builds a MySQL ORDER BY clause from backend-neutral order definitions.
+   *
    * @param orderBy - Ordered fields that define the deterministic result order.
    * @returns SQL ORDER BY text.
    */
@@ -385,6 +405,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Removes MySQL storage identity from one returned record.
+   *
    * @param record - Full MySQL record including storage-owned surrogate `id`.
    * @returns Backend-neutral record without MySQL surrogate `id`.
    */

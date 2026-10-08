@@ -2,14 +2,16 @@ import { z } from 'zod';
 
 /**
  * Shared Zod schema for backend-neutral record metadata.
- * - tenantId: Tenant boundary used to scope every record operation.
- * - recordId: Stable unique identifier for the record.
- * - handlerName: Records handler that owns the record shape and policy.
- * - status: Domain lifecycle state for the record.
- * - createdAt: Creation timestamp assigned by record policy.
- * - createdBy: Actor recorded as the record creator.
- * - updatedAt: Last update timestamp assigned by record policy.
- * - updatedBy: Actor recorded as the last updater.
+ *
+ * - TenantId: Tenant boundary used to scope every record operation.
+ * - RecordId: Stable unique identifier for the record.
+ * - HandlerName: Records handler that owns the record shape and policy.
+ * - Status: Domain lifecycle state for the record.
+ * - CreatedAt: Creation timestamp assigned by record policy.
+ * - CreatedBy: Actor recorded as the record creator.
+ * - UpdatedAt: Last update timestamp assigned by record policy.
+ * - UpdatedBy: Actor recorded as the last updater.
+ *
  * @remarks
  * The runtime source of truth for {@link BaseRecord}; `.strict()` rejects unknown keys so
  * stored documents cannot carry fields outside this contract.
@@ -31,11 +33,13 @@ export const baseRecordSchema = z
 
 /**
  * Cursor schema used by tenant-scoped record collection pagination.
- * - createdAt: Last returned creation timestamp in the current page.
- * - recordId: Last returned record identifier used as the timestamp tie-breaker.
+ *
+ * - CreatedAt: Last returned creation timestamp in the current page.
+ * - RecordId: Last returned record identifier used as the timestamp tie-breaker.
+ *
  * @remarks
- * Runtime source of truth for {@link RecordFindCursor}. `createdAt` is coerced so a serialized
- * (non-ISO) cursor string round-trips back into a `Date`.
+ * Runtime source of truth for {@link RecordFindCursor}. `createdAt` is coerced so a
+ * serialized (non-ISO) cursor string round-trips back into a `Date`.
  * @group Storage
  * @category Storage
  */
@@ -48,11 +52,13 @@ export const recordFindCursorSchema = z
 
 /**
  * Shared Zod schema for record collection find options.
- * - cursor: Continuation point from the previous record page, or null for the first page.
- * - limit: Maximum records returned to the caller.
+ *
+ * - Cursor: Continuation point from the previous record page, or null for the first page.
+ * - Limit: Maximum records returned to the caller.
+ *
  * @remarks
- * Runtime source of truth for {@link RecordFindOptions}; `limit` must be a positive integer and
- * a `null` cursor requests the first page.
+ * Runtime source of truth for {@link RecordFindOptions}; `limit` must be a positive integer
+ * and a `null` cursor requests the first page.
  * @group Storage
  * @category Storage
  */
