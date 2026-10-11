@@ -1,6 +1,6 @@
 import type { Db, IndexSpecification } from 'mongodb';
 
-import { CustomError } from '@slmdevs/tools/shared';
+import { CustomError } from '@salamandradevs/tools/shared';
 
 import type { IDataset } from '../contracts.js';
 import type { IndexDef, IndexField } from '../types.js';

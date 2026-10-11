@@ -1,4 +1,4 @@
-import { CustomError, errMessages } from '@slmdevs/tools/shared';
+import { CustomError, errMessages } from '@salamandradevs/tools/shared';
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 

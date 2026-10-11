@@ -1,4 +1,4 @@
-import { CustomError, errMessages } from '@slmdevs/tools/shared';
+import { CustomError, errMessages } from '@salamandradevs/tools/shared';
 import type { Collection, Filter, Sort } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 

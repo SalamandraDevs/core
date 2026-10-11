@@ -1,4 +1,4 @@
-import { CustomError } from '@slmdevs/tools/shared';
+import { CustomError } from '@salamandradevs/tools/shared';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**

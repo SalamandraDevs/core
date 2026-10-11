@@ -1,7 +1,7 @@
-import { CustomError } from '@slmdevs/tools/shared';
-import { zodToMongoSchema } from '@slmdevs/tools/shared';
-import { zodToMySqlSchema } from '@slmdevs/tools/shared';
-import type { MongoJSONSchema } from '@slmdevs/tools/shared';
+import { CustomError } from '@salamandradevs/tools/shared';
+import { zodToMongoSchema } from '@salamandradevs/tools/shared';
+import { zodToMySqlSchema } from '@salamandradevs/tools/shared';
+import type { MongoJSONSchema } from '@salamandradevs/tools/shared';
 
 import { DatasetProvisioner } from './dataset-provisioner.js';
 import { MongoCrud } from './mongo/mongo-crud.js';

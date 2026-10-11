@@ -1,5 +1,5 @@
 {
-  "name": "@slmdevs/core",
+  "name": "@salamandradevs/core",
   "version": "0.1.0",
   "description": "Shared record layer and database contracts",
   "type": "module",
@@ -22,18 +22,31 @@
     "docs:watch": "typedoc --watch",
     "check": "tsc --noEmit",
     "lint": "eslint ./src --ext .ts --fix",
-    "format": "prettier --config .prettierrc ./src --write"
+    "format": "prettier --config .prettierrc ./src --write",
+    "prepublishOnly": "pnpm run build"
   },
   "simple-git-hooks": {
     "pre-push": "pnpm run format && pnpm run lint"
   },
   "license": "LGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SalamandraDevs/core.git"
+  },
+  "homepage": "https://github.com/SalamandraDevs/core#readme",
+  "bugs": {
+    "url": "https://github.com/SalamandraDevs/core/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "files": [
     "dist",
     "types"
   ],
   "dependencies": {
-    "@slmdevs/tools": "file:../tools",
+    "@salamandradevs/tools": "^0.1.0",
     "mongodb": "^7.6.0",
     "mysql2": "^3.23.4",
     "zod": "^4.5.4"

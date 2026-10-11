@@ -1,6 +1,6 @@
 import type { DatasetDef } from '../types.js';
 
-export type { MongoJSONSchema } from '@slmdevs/tools/shared';
+export type { MongoJSONSchema } from '@salamandradevs/tools/shared';
 
 /**
  * Mongo dataset definition consumed by provisioning workflows.

@@ -1,6 +1,4 @@
 node_modules/
-dist/
-types/
 docs-site/
 tsconfig.tsbuildinfo
 pnpm-lock.yaml

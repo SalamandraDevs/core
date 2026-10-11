@@ -1,0 +1,334 @@
+import { CustomError, errMessages } from '@salamandradevs/tools/shared';
+import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
+/**
+ * MySQL implementation of the backend-neutral {@link ICrud} contract.
+ *
+ * @remarks
+ * Criteria are not verified as unique: operations act on the first match, so the record
+ * layer (for example {@link RecordsHandler}) must target fields backed by a unique
+ * constraint when deterministic addressing is required. Statements bind values through
+ * placeholders and escape identifiers, so criteria and column names cannot inject SQL.
+ * `update` and `delete` run in a transaction that locks the target row with `FOR UPDATE`
+ * and then mutates it by its stable surrogate `id`, which is stripped from every returned
+ * record. Duplicate-key violations are re-classified as `DB_DUPLICATE_KEY_ERROR`; other
+ * driver failures become `DB_BACKEND_ERROR`.
+ * @group Infra
+ * @category Database
+ * @template T - Record shape stored in the table.
+ */
+export class MySqlCrud {
+    pool;
+    tableName;
+    /**
+     * Creates a MySQL CRUD adapter for one table.
+     *
+     * @param pool - MySQL connection pool.
+     * @param tableName - Table that stores the records.
+     */
+    constructor(pool, tableName) {
+        this.pool = pool;
+        this.tableName = tableName;
+    }
+    /**
+     * Persists one record in MySQL and returns the stored record.
+     *
+     * @remarks
+     * The database may assign an `AUTO_INCREMENT` surrogate `id`, which stays in storage and
+     * is never attached to the returned record.
+     * @param record - Complete record to store.
+     * @returns Stored backend-neutral record without MySQL surrogate `id`.
+     * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the insert violates a unique
+     *   constraint.
+     * @throws {CustomError} DB_BACKEND_ERROR when the insert fails for any other reason.
+     */
+    async create(record) {
+        // Build INSERT with escaped identifiers and placeholders for values.
+        const keys = Object.keys(record);
+        const columns = keys.map((key) => this.pool.escapeId(key)).join(', ');
+        const placeholders = keys.map(() => '?').join(', ');
+        const sql = keys.length
+            ? `INSERT INTO ${this.pool.escapeId(this.tableName)} (${columns}) VALUES (${placeholders})`
+            : `INSERT INTO ${this.pool.escapeId(this.tableName)} () VALUES ()`;
+        // Execute through the pool, binding record values to placeholders.
+        try {
+            await this.pool.execute(sql, keys.map((key) => record[key]));
+        }
+        catch (error) {
+            if (isMySqlDupKeyError(error)) {
+                throw new CustomError({
+                    name: 'DB_DUPLICATE_KEY_ERROR',
+                    message: errMessages.DB_DUPLICATE_KEY,
+                    cause: error
+                });
+            }
+            throw new CustomError({
+                name: 'DB_BACKEND_ERROR',
+                message: 'Failed to create MySQL record',
+                cause: error
+            });
+        }
+        return record;
+    }
+    /**
+     * Reads one record matching all criteria fields and returns the match, or null.
+     *
+     * @param criteria - Record fields and values used for the lookup.
+     * @returns Matching backend-neutral record without surrogate `id`, or `null` when none
+     *   matches.
+     * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+     */
+    async read(criteria) {
+        // Read through the pool without opening a transaction.
+        const record = await this.findRecord(this.pool, criteria);
+        // Hide the storage id when a record is found.
+        return record ? this.returnRecord(record) : null;
+    }
+    /**
+     * Finds records matching all criteria fields and required page controls.
+     *
+     * @remarks
+     * Selects one row beyond `limit` to derive `hasNextPage` without a second count query,
+     * then trims the extra row from the returned page.
+     * @param criteria - Record fields and values used for the lookup.
+     * @param options - Required ordering, cursor, and page-size controls.
+     * @returns Matching backend-neutral records (without surrogate `id`) and page metadata.
+     * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+     */
+    async find(criteria, options) {
+        assertCriteria(criteria);
+        const limit = options.limit;
+        const queryLimit = limit + 1;
+        const filterSql = this.buildFindFilter(criteria, options.cursor, options.orderBy);
+        const sql = `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${filterSql[0]}` +
+            this.buildSort(options.orderBy) +
+            ' LIMIT ?';
+        const [records] = await this.pool.execute(sql, [...filterSql[1], queryLimit]);
+        const hasNextPage = records.length > limit;
+        const returnedRecords = hasNextPage
+            ? records.slice(0, limit)
+            : records;
+        return {
+            records: returnedRecords.map((record) => this.returnRecord(record)),
+            hasNextPage
+        };
+    }
+    /**
+     * Updates one record matching all criteria fields and returns the updated record, or
+     * null.
+     *
+     * @remarks
+     * Runs in a transaction: it locks the matching row with `FOR UPDATE`, applies `changes`
+     * by the row's surrogate `id`, then reloads and returns the persisted row so the caller
+     * observes the committed state. Any failure rolls back and the pooled connection is
+     * always released.
+     * @param criteria - Record fields and values used for the lookup.
+     * @param changes - Partial record with fields to update.
+     * @returns Updated backend-neutral record without surrogate `id`, or `null` when none
+     *   matches.
+     * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+     * @throws {CustomError} DB_DUPLICATE_KEY_ERROR when the update violates a unique
+     *   constraint.
+     * @throws {CustomError} DB_BACKEND_ERROR when the update fails for any other reason.
+     */
+    async update(criteria, changes) {
+        // Reserve one connection for the complete transaction.
+        const connection = await this.pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Find and lock the target (forUpdate = true) so it cannot change during the update.
+            const storedRecord = await this.findRecord(connection, criteria, true);
+            if (!storedRecord) {
+                await connection.rollback();
+                return null;
+            }
+            // Build and execute the update using the stable surrogate id.
+            const entries = Object.entries(changes);
+            if (entries.length) {
+                const assignments = entries
+                    .map(([field]) => `${connection.escapeId(field)} = ?`)
+                    .join(', ');
+                const sql = `UPDATE ${connection.escapeId(this.tableName)} SET ${assignments} ` +
+                    `WHERE ${connection.escapeId('id')} = ?`;
+                await connection.execute(sql, [
+                    ...entries.map(([, fieldValue]) => fieldValue),
+                    storedRecord.id
+                ]);
+            }
+            // Reload the database result before returning it.
+            const sql = `SELECT * FROM ${connection.escapeId(this.tableName)} ` +
+                `WHERE ${connection.escapeId('id')} = ? LIMIT 1`;
+            const [updatedRecords] = await connection.execute(sql, [storedRecord.id]);
+            const updatedRecord = updatedRecords.at(0);
+            if (!updatedRecord) {
+                throw new Error('Updated MySQL record could not be returned');
+            }
+            // Persist the transaction and hide the storage id.
+            await connection.commit();
+            return this.returnRecord(updatedRecord);
+        }
+        catch (error) {
+            // Undo partial work on any failure.
+            await connection.rollback();
+            if (isMySqlDupKeyError(error)) {
+                throw new CustomError({
+                    name: 'DB_DUPLICATE_KEY_ERROR',
+                    message: errMessages.DB_DUPLICATE_KEY,
+                    cause: error
+                });
+            }
+            throw new CustomError({
+                name: 'DB_BACKEND_ERROR',
+                message: 'Failed to update MySQL record',
+                cause: error
+            });
+        }
+        finally {
+            // Always return the connection to the pool.
+            connection.release();
+        }
+    }
+    /**
+     * Deletes one record matching all criteria fields and returns the deleted record, or
+     * null.
+     *
+     * @remarks
+     * Runs in a transaction: it locks the matching row with `FOR UPDATE`, deletes it by its
+     * surrogate `id`, and returns the row as it existed before deletion. Any failure rolls
+     * back and the pooled connection is always released.
+     * @param criteria - Record fields and values used for the lookup.
+     * @returns Deleted backend-neutral record without surrogate `id`, or `null` when none
+     *   matches.
+     * @throws {TypeError} When `criteria` is empty or malformed; see {@link assertCriteria}.
+     * @throws {CustomError} DB_BACKEND_ERROR when the delete fails.
+     */
+    async delete(criteria) {
+        // Reserve one connection for the complete transaction.
+        const connection = await this.pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            // Find and lock the exact row to delete.
+            const record = await this.findRecord(connection, criteria, true);
+            if (!record) {
+                await connection.rollback();
+                return null;
+            }
+            // Delete the selected row using its stable surrogate id.
+            const sql = `DELETE FROM ${connection.escapeId(this.tableName)} ` +
+                `WHERE ${connection.escapeId('id')} = ?`;
+            await connection.execute(sql, [record.id]);
+            // Persist the transaction and return the deleted application record.
+            await connection.commit();
+            return this.returnRecord(record);
+        }
+        catch (error) {
+            // Undo partial work on any failure.
+            await connection.rollback();
+            throw new CustomError({
+                name: 'DB_BACKEND_ERROR',
+                message: 'Failed to delete MySQL record',
+                cause: error
+            });
+        }
+        finally {
+            // Always return the connection to the pool.
+            connection.release();
+        }
+    }
+    /**
+     * Finds one stored record matching all criteria fields.
+     *
+     * @param connection - MySQL connection or pool used for the query.
+     * @param criteria - Record fields and values used for the lookup.
+     * @param forUpdate - Whether to lock the matching record for update.
+     * @returns Matching stored record, or null when not found.
+     */
+    async findRecord(connection, criteria, forUpdate = false) {
+        assertCriteria(criteria);
+        const entries = Object.entries(criteria);
+        // Build one compound lookup, adding a transaction lock when requested.
+        const conditions = [
+            ...entries.map(([field, value]) => value === null
+                ? `${connection.escapeId(field)} IS NULL`
+                : `${connection.escapeId(field)} = ?`)
+        ].join(' AND ');
+        const sql = `SELECT * FROM ${connection.escapeId(this.tableName)} ` +
+            `WHERE ${conditions} LIMIT 1` +
+            (forUpdate ? ' FOR UPDATE' : '');
+        // Bind non-null lookup values and return only the first match.
+        const values = entries
+            .filter(([, value]) => value !== null)
+            .map(([, value]) => value);
+        const [records] = await connection.execute(sql, values);
+        return records.at(0) ?? null;
+    }
+    /**
+     * Builds a MySQL WHERE predicate from exact criteria and cursor options.
+     *
+     * @param criteria - Exact field criteria already owned by the caller policy.
+     * @param cursor - Last seen ordered field values used to continue the page.
+     * @param orderBy - Ordered fields that define deterministic cursor continuation.
+     * @returns SQL predicate text and its bound values.
+     */
+    buildFindFilter(criteria, cursor, orderBy) {
+        const entries = Object.entries(criteria);
+        const criteriaConditions = entries.map(([field, value]) => value === null
+            ? `${this.pool.escapeId(field)} IS NULL`
+            : `${this.pool.escapeId(field)} = ?`);
+        const values = entries
+            .filter(([, value]) => value !== null)
+            .map(([, value]) => value);
+        if (!cursor) {
+            return [criteriaConditions.join(' AND '), values];
+        }
+        const cursorValues = [];
+        const cursorClauses = orderBy.map((order, index) => {
+            const equalityConditions = orderBy
+                .slice(0, index)
+                .map((previous) => {
+                cursorValues.push(cursor[previous.field]);
+                return `${this.pool.escapeId(previous.field)} = ?`;
+            });
+            const comparisonOperator = order.direction === 'asc' ? '>' : '<';
+            cursorValues.push(cursor[order.field]);
+            return [
+                ...equalityConditions,
+                `${this.pool.escapeId(order.field)} ${comparisonOperator} ?`
+            ].join(' AND ');
+        });
+        const cursorSql = cursorClauses
+            .map((clause) => `(${clause})`)
+            .join(' OR ');
+        return [
+            `${criteriaConditions.join(' AND ')} AND (${cursorSql})`,
+            [...values, ...cursorValues]
+        ];
+    }
+    /**
+     * Builds a MySQL ORDER BY clause from backend-neutral order definitions.
+     *
+     * @param orderBy - Ordered fields that define the deterministic result order.
+     * @returns SQL ORDER BY text.
+     */
+    buildSort(orderBy) {
+        const orderItems = orderBy
+            .map((order) => {
+            const direction = order.direction === 'asc' ? 'ASC' : 'DESC';
+            return `${this.pool.escapeId(order.field)} ${direction}`;
+        })
+            .join(', ');
+        return ` ORDER BY ${orderItems}`;
+    }
+    /**
+     * Removes MySQL storage identity from one returned record.
+     *
+     * @param record - Full MySQL record including storage-owned surrogate `id`.
+     * @returns Backend-neutral record without MySQL surrogate `id`.
+     */
+    returnRecord(record) {
+        // Remove MySQL-owned identity before crossing the adapter boundary.
+        const { id: storageId, ...applicationRecord } = record;
+        void storageId;
+        return applicationRecord;
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibXlzcWwtY3J1ZC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9pbmZyYS9kYXRhYmFzZS9teXNxbC9teXNxbC1jcnVkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxXQUFXLEVBQUUsV0FBVyxFQUFFLE1BQU0sOEJBQThCLENBQUM7QUFJeEUsT0FBTyxFQUFFLGNBQWMsRUFBRSxrQkFBa0IsRUFBRSxNQUFNLGFBQWEsQ0FBQztBQUtqRTs7Ozs7Ozs7Ozs7Ozs7O0dBZUc7QUFDSCxNQUFNLE9BQU8sU0FBUztJQVFEO0lBQ0E7SUFSbkI7Ozs7O09BS0c7SUFDSCxZQUNtQixJQUFVLEVBQ1YsU0FBaUI7UUFEakIsU0FBSSxHQUFKLElBQUksQ0FBTTtRQUNWLGNBQVMsR0FBVCxTQUFTLENBQVE7SUFDakMsQ0FBQztJQUVKOzs7Ozs7Ozs7OztPQVdHO0lBQ0gsS0FBSyxDQUFDLE1BQU0sQ0FBQyxNQUFTO1FBQ3BCLHFFQUFxRTtRQUNyRSxNQUFNLElBQUksR0FBYSxNQUFNLENBQUMsSUFBSSxDQUFDLE1BQU0sQ0FBQyxDQUFDO1FBQzNDLE1BQU0sT0FBTyxHQUFXLElBQUksQ0FBQyxHQUFHLENBQUMsQ0FBQyxHQUFXLEVBQUUsRUFBRSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsUUFBUSxDQUFDLEdBQUcsQ0FBQyxDQUFDLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDO1FBQ3RGLE1BQU0sWUFBWSxHQUFXLElBQUksQ0FBQyxHQUFHLENBQUMsR0FBRyxFQUFFLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDO1FBQzVELE1BQU0sR0FBRyxHQUFXLElBQUksQ0FBQyxNQUFNO1lBQzdCLENBQUMsQ0FBQyxlQUFlLElBQUksQ0FBQyxJQUFJLENBQUMsUUFBUSxDQUFDLElBQUksQ0FBQyxTQUFTLENBQUMsS0FBSyxPQUFPLGFBQWEsWUFBWSxHQUFHO1lBQzNGLENB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

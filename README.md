@@ -1,6 +1,6 @@
 # Salamandra Devs Community Platform Core
 
-`@slmdevs/core` is the shared record and database foundation used by the Salamandra
+`@salamandradevs/core` is the shared record and database foundation used by the Salamandra
 Devs Community Platform. It provides a backend-neutral layer for durable records, dataset
 provisioning, cursor pagination, and request-scoped execution context.
 
@@ -25,7 +25,7 @@ and MySQL adapters. `src/records` contains the base record model and handler use
 to build tenant-aware record policies. `src/utils` contains the execution-context helpers that
 bind service work to the current request or job.
 
-Services such as `@slmdevs/auth` use Core to keep persistence details out of transport and
+Services such as `@salamandradevs/auth` use Core to keep persistence details out of transport and
 application code while still enforcing tenant boundaries close to the record layer.
 
 ## Development

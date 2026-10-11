@@ -1,4 +1,4 @@
-import { CustomError } from '@slmdevs/tools/shared';
+import { CustomError } from '@salamandradevs/tools/shared';
 import type { FieldPacket, Pool, RowDataPacket } from 'mysql2/promise';
 
 import type { IDataset } from '../contracts.js';

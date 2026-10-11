@@ -1,4 +1,4 @@
-import { CustomError } from '@slmdevs/tools/shared';
+import { CustomError } from '@salamandradevs/tools/shared';
 
 import { MongoDbConnection } from './mongo/mongo-db-connection.js';
 import { MySqlDbConnection } from './mysql/mysql-db-connection.js';
