@@ -1,2 +1,4 @@
 allowBuilds:
   simple-git-hooks: true
+minimumReleaseAgeExclude:
+  - '@salamandradevs/tools@0.1.0'
