@@ -3,7 +3,6 @@ import type { Pool } from 'mysql2/promise';
 import type { ZodType } from 'zod';
 /**
  * Generic backend-neutral key-value record.
- *
  * @remarks
  * The upper bound for CRUD record types when no stronger shape is known; concrete records
  * extend it with their own fields.
@@ -15,7 +14,6 @@ export type GeneralRecord = {
 };
 /**
  * Backend adapter family selected by a composition root.
- *
  * @remarks
  * The discriminant that drives backend selection throughout the layer, from
  * {@link DatabaseHandle} to the `switch` in {@link DatabaseAdapter}.
@@ -29,7 +27,6 @@ export type DatabaseBackend = 'mongodb' | 'mysql';
  * - Backend: Selected backend adapter family.
  * - Db: Connected MongoDB database handle, present for the mongodb backend.
  * - Pool: Connected MySQL connection pool, present for the mysql backend.
- *
  * @remarks
  * A discriminated union on `backend`: narrowing on that tag reveals exactly one of `db` or
  * `pool`, so consumers select driver-specific collaborators without unsafe casts.
@@ -45,7 +42,6 @@ export type DatabaseHandle = Readonly<{
 }>;
 /**
  * Backend-neutral index direction used by dataset provisioning.
- *
  * @group Infra
  * @category Database
  */
@@ -55,7 +51,6 @@ export type IndexDirection = 'asc' | 'desc';
  *
  * - Name: Record field included in the index.
  * - Direction: Sort direction used by the index for this field.
- *
  * @group Infra
  * @category Database
  */
@@ -69,7 +64,6 @@ export type IndexField = Readonly<{
  * - Name: Stable index name.
  * - Fields: Ordered index fields and their directions.
  * - Unique: Whether the index enforces uniqueness.
- *
  * @remarks
  * Declares desired state, not a command: {@link DatasetProvisioner} looks the index up by
  * `name` and creates it only when absent. `fields` order is significant, matching the query
@@ -88,7 +82,6 @@ export type IndexDef = Readonly<{
  * - Name: Dataset name to create when missing.
  * - Schema: Zod schema describing the record shape.
  * - Indexes: Backend-neutral index intent for the dataset.
- *
  * @remarks
  * The unit {@link IDatasetProvisioner} provisions; the Zod `schema` is passed through a
  * {@link SchemaConverter} into the backend's schema format before the dataset is created.
@@ -105,7 +98,6 @@ export type DatasetDef<TIndex extends {
 }>;
 /**
  * Backend-neutral find ordering direction.
- *
  * @group Infra
  * @category Database
  */
@@ -115,7 +107,6 @@ export type FindOrderDirection = 'asc' | 'desc';
  *
  * - Field: Record field used by the database ORDER BY or sort clause.
  * - Direction: Sort direction applied to the selected record field.
- *
  * @group Infra
  * @category Database
  */
@@ -129,7 +120,6 @@ export type FindOrder = Readonly<{
  * - Limit: Maximum records returned to the caller.
  * - Cursor: Last seen ordered field values used to continue the result page.
  * - OrderBy: Ordered fields that define deterministic cursor continuation.
- *
  * @remarks
  * Drives keyset pagination: `cursor` holds the `orderBy` field values of the last row from
  * the previous page, so continuation is stable under inserts. The `orderBy` fields must be
@@ -148,7 +138,6 @@ export type FindOptions<T> = Readonly<{
  *
  * - Records: Records returned after applying criteria and find options.
  * - HasNextPage: Whether another page exists after the returned records.
- *
  * @remarks
  * `hasNextPage` lets callers decide whether to request another page without a separate
  * count query; the last returned record supplies the next {@link FindOptions} cursor.

@@ -4,7 +4,6 @@ import type { FindOptions, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 /**
  * MySQL implementation of the backend-neutral {@link ICrud} contract.
- *
  * @remarks
  * Criteria are not verified as unique: operations act on the first match, so the record
  * layer (for example {@link RecordsHandler}) must target fields backed by a unique
@@ -23,14 +22,12 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     private readonly tableName;
     /**
      * Creates a MySQL CRUD adapter for one table.
-     *
      * @param pool - MySQL connection pool.
      * @param tableName - Table that stores the records.
      */
     constructor(pool: Pool, tableName: string);
     /**
      * Persists one record in MySQL and returns the stored record.
-     *
      * @remarks
      * The database may assign an `AUTO_INCREMENT` surrogate `id`, which stays in storage and
      * is never attached to the returned record.
@@ -43,7 +40,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     create(record: T): Promise<T>;
     /**
      * Reads one record matching all criteria fields and returns the match, or null.
-     *
      * @param criteria - Record fields and values used for the lookup.
      * @returns Matching backend-neutral record without surrogate `id`, or `null` when none
      *   matches.
@@ -52,7 +48,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     read(criteria: Partial<T>): Promise<T | null>;
     /**
      * Finds records matching all criteria fields and required page controls.
-     *
      * @remarks
      * Selects one row beyond `limit` to derive `hasNextPage` without a second count query,
      * then trims the extra row from the returned page.
@@ -65,7 +60,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     /**
      * Updates one record matching all criteria fields and returns the updated record, or
      * null.
-     *
      * @remarks
      * Runs in a transaction: it locks the matching row with `FOR UPDATE`, applies `changes`
      * by the row's surrogate `id`, then reloads and returns the persisted row so the caller
@@ -84,7 +78,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     /**
      * Deletes one record matching all criteria fields and returns the deleted record, or
      * null.
-     *
      * @remarks
      * Runs in a transaction: it locks the matching row with `FOR UPDATE`, deletes it by its
      * surrogate `id`, and returns the row as it existed before deletion. Any failure rolls
@@ -98,7 +91,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     delete(criteria: Partial<T>): Promise<T | null>;
     /**
      * Finds one stored record matching all criteria fields.
-     *
      * @param connection - MySQL connection or pool used for the query.
      * @param criteria - Record fields and values used for the lookup.
      * @param forUpdate - Whether to lock the matching record for update.
@@ -107,7 +99,6 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     private findRecord;
     /**
      * Builds a MySQL WHERE predicate from exact criteria and cursor options.
-     *
      * @param criteria - Exact field criteria already owned by the caller policy.
      * @param cursor - Last seen ordered field values used to continue the page.
      * @param orderBy - Ordered fields that define deterministic cursor continuation.
@@ -116,14 +107,12 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     private buildFindFilter;
     /**
      * Builds a MySQL ORDER BY clause from backend-neutral order definitions.
-     *
      * @param orderBy - Ordered fields that define the deterministic result order.
      * @returns SQL ORDER BY text.
      */
     private buildSort;
     /**
      * Removes MySQL storage identity from one returned record.
-     *
      * @param record - Full MySQL record including storage-owned surrogate `id`.
      * @returns Backend-neutral record without MySQL surrogate `id`.
      */

@@ -14,7 +14,6 @@ import type { MySqlSchema } from './mysql/types.js';
 
 /**
  * Backend-bound database adapters that provision datasets and build CRUD adapters.
- *
  * @remarks
  * The single point where a connected {@link DatabaseHandle} is resolved to its concrete
  * driver collaborators. The constructor inspects the discriminated `backend` tag once and
@@ -37,7 +36,6 @@ export class DatabaseAdapter {
 
   /**
    * Selects the backend collaborators for one connected handle.
-   *
    * @param handle - Connected, backend-tagged database handle.
    * @throws {CustomError} DB_BACKEND_ERROR when the handle carries an unsupported backend.
    */
@@ -86,7 +84,6 @@ export class DatabaseAdapter {
 
   /**
    * Provisions the given dataset definitions idempotently.
-   *
    * @remarks
    * Runs the definitions sequentially so provisioning order is deterministic and failures
    * are attributable to a single dataset. Safe to run on every startup, since the
@@ -102,7 +99,6 @@ export class DatabaseAdapter {
 
   /**
    * Builds a CRUD adapter for one dataset by name.
-   *
    * @remarks
    * Delegates to the closure captured at construction, so the returned adapter targets the
    * connected backend without re-inspecting the handle.

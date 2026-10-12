@@ -8,7 +8,6 @@ import type { MongoJSONSchema } from './types.js';
 
 /**
  * MongoDB dataset administration adapter.
- *
  * @remarks
  * Maps collection and index existence checks and creation onto the driver, and wraps every
  * driver failure as a `DB_DATASET_ERROR`.
@@ -18,14 +17,12 @@ import type { MongoJSONSchema } from './types.js';
 export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
   /**
    * Creates a Mongo dataset adapter for one connected database.
-   *
    * @param db - Connected Mongo database handle.
    */
   constructor(private readonly db: Db) {}
 
   /**
    * Checks whether one collection exists.
-   *
    * @param name - Collection name to inspect.
    * @returns `true` when the collection exists.
    * @throws {CustomError} DB_DATASET_ERROR when the existence check fails.
@@ -44,7 +41,6 @@ export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
 
   /**
    * Creates one collection with the desired schema validator.
-   *
    * @param name - Collection name to create.
    * @param desiredSchema - Target schema validator.
    * @returns A promise that resolves when creation completes.
@@ -64,7 +60,6 @@ export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
 
   /**
    * Creates one collection index.
-   *
    * @param datasetName - Collection name that owns the index.
    * @param desired - Target index definition.
    * @returns A promise that resolves when creation completes.
@@ -89,7 +84,6 @@ export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
 
   /**
    * Reads one index definition for a collection and returns it, or null.
-   *
    * @remarks
    * Existence is decided by name only; the returned definition is a presence marker with
    * empty `fields` and `unique: false`, since {@link DatasetProvisioner} only needs to know
@@ -124,7 +118,6 @@ export class MongoDataset implements IDataset<MongoJSONSchema, IndexDef> {
 
   /**
    * Translates backend-neutral index intent to MongoDB driver syntax.
-   *
    * @param desired - Backend-neutral target index definition.
    * @returns MongoDB index key document.
    */

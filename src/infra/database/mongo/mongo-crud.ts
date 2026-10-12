@@ -9,7 +9,6 @@ import type { GeneralRecord } from '../types.js';
 
 /**
  * MongoDB implementation of the backend-neutral {@link ICrud} contract.
- *
  * @remarks
  * Criteria are not verified as unique: the single-record operations act on the first match,
  * so the record layer (for example {@link RecordsHandler}) must target fields backed by a
@@ -24,14 +23,12 @@ import type { GeneralRecord } from '../types.js';
 export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Creates a Mongo CRUD adapter for one collection.
-   *
    * @param collection - Mongo collection that stores the records.
    */
   constructor(private readonly collection: Collection<T>) {}
 
   /**
    * Persists one record in MongoDB and returns the stored record.
-   *
    * @remarks
    * The driver assigns the storage-owned `_id` to a spread copy, so it never leaks back
    * onto the caller's record instance.
@@ -66,7 +63,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Reads one record matching all criteria fields and returns the match, or null.
-   *
    * @param criteria - BaseRecord fields and values used for the lookup.
    * @returns Matching backend-neutral record without Mongo `_id`, or `null` when none
    *   matches.
@@ -88,7 +84,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Updates one record matching all criteria fields and returns the updated record, or
    * null.
-   *
    * @remarks
    * Applies `changes` with `$set` and returns the post-update document, so the caller
    * observes the persisted state rather than its requested changes.
@@ -139,7 +134,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   /**
    * Deletes one record matching all criteria fields and returns the deleted record, or
    * null.
-   *
    * @param criteria - BaseRecord fields and values used for the lookup.
    * @returns Deleted backend-neutral record without Mongo `_id`, or `null` when none
    *   matches.
@@ -160,7 +154,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Finds records matching all criteria fields and optional page controls.
-   *
    * @remarks
    * Over-fetches one row beyond `limit` to compute `hasNextPage` without a second count
    * query, then drops the extra row from the returned page.
@@ -200,7 +193,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Builds a MongoDB filter from backend-neutral exact criteria and cursor options.
-   *
    * @param criteria - Exact field criteria already owned by the caller policy.
    * @param cursor - Last seen ordered field values used to continue the page.
    * @param orderBy - Ordered fields that define deterministic cursor continuation.
@@ -244,7 +236,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Builds a MongoDB sort document from backend-neutral ordered fields.
-   *
    * @param orderBy - Ordered fields that define deterministic result order.
    * @returns MongoDB sort document.
    */
@@ -261,7 +252,6 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
 
   /**
    * Removes MongoDB storage identity from one returned document.
-   *
    * @param document - Full MongoDB document including storage-owned `_id`.
    * @returns Backend-neutral record without MongoDB `_id`.
    */

@@ -10,7 +10,6 @@ import { z } from 'zod';
  * - CreatedBy: Actor recorded as the record creator.
  * - UpdatedAt: Last update timestamp assigned by record policy.
  * - UpdatedBy: Actor recorded as the last updater.
- *
  * @remarks
  * The runtime source of truth for {@link BaseRecord}; `.strict()` rejects unknown keys so
  * stored documents cannot carry fields outside this contract.
@@ -32,7 +31,6 @@ export declare const baseRecordSchema: z.ZodObject<{
  *
  * - CreatedAt: Last returned creation timestamp in the current page.
  * - RecordId: Last returned record identifier used as the timestamp tie-breaker.
- *
  * @remarks
  * Runtime source of truth for {@link RecordFindCursor}. `createdAt` is coerced so a
  * serialized (non-ISO) cursor string round-trips back into a `Date`.
@@ -48,7 +46,6 @@ export declare const recordFindCursorSchema: z.ZodObject<{
  *
  * - Cursor: Continuation point from the previous record page, or null for the first page.
  * - Limit: Maximum records returned to the caller.
- *
  * @remarks
  * Runtime source of truth for {@link RecordFindOptions}; `limit` must be a positive integer
  * and a `null` cursor requests the first page.

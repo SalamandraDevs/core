@@ -9,7 +9,6 @@ import type { RecordFindOptions } from './types.js';
 /**
  * Base record handler that applies tenant scope and delegates persistence to an
  * {@link ICrud} adapter.
- *
  * @remarks
  * Concrete handlers subclass this to expose a typed storage surface for one record shape.
  * Every operation derives the tenant (and, for writes, the actor) from the ambient
@@ -23,7 +22,6 @@ import type { RecordFindOptions } from './types.js';
 export abstract class RecordsHandler<T extends BaseRecord> {
   /**
    * Creates a record handler bound to one CRUD adapter.
-   *
    * @param crud - Backend-neutral persistence contract for the record.
    * @param handlerName - Stored handler discriminator applied to created records.
    */
@@ -34,7 +32,6 @@ export abstract class RecordsHandler<T extends BaseRecord> {
 
   /**
    * Creates a new record for the current execution context tenant.
-   *
    * @remarks
    * Stamps the policy-owned metadata the caller must not supply: a fresh `recordId`, the
    * handler discriminator, the tenant and actor from the execution context, and matching
@@ -61,7 +58,6 @@ export abstract class RecordsHandler<T extends BaseRecord> {
 
   /**
    * Reads one active record by its public identifier within the current tenant.
-   *
    * @param recordId - BaseRecord identifier (`recordId`).
    * @returns The matching record, or `null` when none exists for the tenant.
    * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
@@ -79,7 +75,6 @@ export abstract class RecordsHandler<T extends BaseRecord> {
 
   /**
    * Updates one active record by its public identifier within the current tenant.
-   *
    * @remarks
    * Refreshes `updatedAt` and `updatedBy` from the current context, so audit metadata
    * cannot be spoofed through the `changes` payload.
@@ -106,7 +101,6 @@ export abstract class RecordsHandler<T extends BaseRecord> {
 
   /**
    * Physically deletes one record by its public identifier within the current tenant.
-   *
    * @remarks
    * A hard delete, not a status change. The public method accepts only `recordId`; the
    * tenant identifier is derived from the execution context and combined with it, so a
@@ -128,7 +122,6 @@ export abstract class RecordsHandler<T extends BaseRecord> {
 
   /**
    * Finds active records within the current tenant.
-   *
    * @remarks
    * Results are ordered by `createdAt` descending with `recordId` as a stable tie-breaker,
    * which matches the `tenant_record` index and gives keyset pagination a deterministic
