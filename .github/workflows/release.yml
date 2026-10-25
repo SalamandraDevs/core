@@ -33,15 +33,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false   # never cache in release builds
 
       - name: Use an npm with staged-publish support
-        run: npm install -g npm@latest   # needs >= 11.15.0 for `npm stage publish`
+        run: npm install -g npm@11.15.0   # pinned; >= 11.15.0 required for `npm stage publish`
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm run build

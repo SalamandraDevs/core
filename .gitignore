@@ -1,5 +1,4 @@
 node_modules/
 docs-site/
 tsconfig.tsbuildinfo
-pnpm-lock.yaml
 .pnpm-store/
