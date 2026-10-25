@@ -1,5 +1,6 @@
 /**
  * Asserts criteria is a non-empty plain object (not an array) without undefined values.
+ *
  * @remarks
  * A guard the CRUD adapters run before building a query, so a match-all or malformed
  * criteria can never widen into an unbounded update or delete. An `undefined` value is
@@ -26,6 +27,7 @@ export function assertCriteria(input: unknown): asserts input is Record<string, 
 
 /**
  * Detects MongoDB duplicate key errors.
+ *
  * @remarks
  * Matches driver codes 11000 and 11001 so a create colliding with a unique index can be
  * re-classified as a `DB_DUPLICATE_KEY_ERROR` rather than surfaced as a raw driver error.
@@ -46,6 +48,7 @@ export function isMongoDupKeyError(error: unknown): boolean {
 
 /**
  * Detects MySQL duplicate key errors.
+ *
  * @remarks
  * Accepts either the `ER_DUP_ENTRY` code or its numeric `errno` 1062, since the mysql2
  * driver may populate one or the other; the MySQL counterpart to

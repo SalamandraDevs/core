@@ -4,6 +4,7 @@ import type { IDbConnection } from '../contracts.js';
 
 /**
  * MongoDB connection adapter for application bootstrap.
+ *
  * @remarks
  * The constructor builds the `MongoClient` but opens nothing; `connect` establishes the
  * connection and selects the configured database, and `close` releases the client.
@@ -19,6 +20,7 @@ export class MongoDbConnection implements IDbConnection<Db> {
 
   /**
    * Creates a Mongo connection adapter for one database.
+   *
    * @param uri - Mongo connection string.
    * @param dbName - Database name to select after connecting.
    */
@@ -31,6 +33,7 @@ export class MongoDbConnection implements IDbConnection<Db> {
 
   /**
    * Opens the Mongo connection and returns the database handle.
+   *
    * @returns Connected Mongo database handle.
    */
   async connect(): Promise<Db> {
@@ -40,6 +43,7 @@ export class MongoDbConnection implements IDbConnection<Db> {
 
   /**
    * Closes the Mongo client connection.
+   *
    * @returns A promise that resolves when the client is closed.
    */
   async close(): Promise<void> {

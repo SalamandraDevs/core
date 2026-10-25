@@ -7,6 +7,7 @@ import type { DatabaseBackend, DatabaseHandle } from './types.js';
 
 /**
  * Backend-neutral database provider that owns one connection lifecycle.
+ *
  * @remarks
  * Selects a MongoDB, MySQL, or future-vendor connection from the `backend` argument, but
  * opens nothing; `connect` establishes the connection and caches the backend-tagged
@@ -21,6 +22,7 @@ export class DatabaseProvider implements IDatabaseProvider {
 
   /**
    * Creates a provider bound to one backend connection.
+   *
    * @param backend - Backend adapter family to connect to.
    * @param uri - Database connection string.
    * @param databaseName - Database name selected after connecting.
@@ -59,6 +61,7 @@ export class DatabaseProvider implements IDatabaseProvider {
 
   /**
    * Opens the underlying connection and caches its backend-tagged handle.
+   *
    * @remarks
    * The connection's `backend` discriminant narrows it to one driver, so the raw handle is
    * tagged with its `backend` and cached without inspecting the driver. Adding a backend
@@ -95,6 +98,7 @@ export class DatabaseProvider implements IDatabaseProvider {
 
   /**
    * Returns the connected, backend-tagged database handle.
+   *
    * @returns Connected database handle.
    * @throws {CustomError} DB_BACKEND_ERROR when called before
    *   {@link DatabaseProvider.connect}.
@@ -112,6 +116,7 @@ export class DatabaseProvider implements IDatabaseProvider {
 
   /**
    * Closes the underlying database connection.
+   *
    * @returns A promise that resolves when the connection is closed.
    */
   async close(): Promise<void> {

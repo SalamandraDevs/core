@@ -3,6 +3,7 @@ import type { DatasetDef } from './types.js';
 
 /**
  * Provisioning workflow that converts schemas and coordinates dataset setup.
+ *
  * @remarks
  * Converts a dataset's Zod schema through the injected {@link SchemaConverter}, then drives
  * an {@link IDataset} to create the dataset and its indexes. Every step is guarded by a
@@ -20,6 +21,7 @@ export class DatasetProvisioner<
 > implements IDatasetProvisioner<TDef> {
   /**
    * Creates a provisioner for one dataset administration adapter.
+   *
    * @param dataset - Dataset implementation that performs backend operations.
    * @param convertSchema - Converts a Zod schema into the backend schema format.
    */
@@ -30,6 +32,7 @@ export class DatasetProvisioner<
 
   /**
    * Provisions one dataset definition idempotently.
+   *
    * @remarks
    * Converts the schema first, then ensures the dataset before its indexes, since an index
    * cannot be created on a dataset that does not yet exist.
@@ -45,6 +48,7 @@ export class DatasetProvisioner<
 
   /**
    * Creates a dataset only when it does not already exist.
+   *
    * @param name - Dataset name to provision.
    * @param desiredSchema - Backend-specific schema definition.
    * @returns A promise that resolves when the dataset exists.
@@ -59,6 +63,7 @@ export class DatasetProvisioner<
 
   /**
    * Creates missing dataset indexes.
+   *
    * @param datasetName - Dataset name that owns the indexes.
    * @param indexes - Target index definitions.
    * @returns A promise that resolves when all indexes exist.
