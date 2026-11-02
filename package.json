@@ -1,11 +1,11 @@
 {
   "name": "@salamandradevs/core",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shared record layer and database contracts",
   "type": "module",
   "packageManager": "pnpm@12.16.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
