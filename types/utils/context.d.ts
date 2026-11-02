@@ -3,6 +3,7 @@
  *
  * - ActorId: Authenticated actor attributed as the author of record mutations.
  * - TenantId: Tenant boundary scoping every record operation.
+ *
  * @group Utils
  * @category Execution Context
  */
@@ -14,6 +15,7 @@ export type AuthenticatedContext = Readonly<{
  * Per-request tracing metadata.
  *
  * - RequestId: Correlation identifier carried through logs for one request or job.
+ *
  * @group Utils
  * @category Execution Context
  */
@@ -25,6 +27,7 @@ export type RequestContext = Readonly<{
  *
  * - Authenticated: Trusted identity for the current request or job.
  * - Request: Tracing metadata for the current request or job.
+ *
  * @remarks
  * Bound to the async scope by {@link runWithExecutionCtx} and retrieved by
  * {@link getExecutionCtx}, so downstream policy code such as {@link RecordsHandler} reads the
@@ -38,6 +41,7 @@ export type ExecutionContext = Readonly<{
 }>;
 /**
  * Runs one callback with the supplied execution context bound to the current async scope.
+ *
  * @remarks
  * The context is visible to every asynchronous operation started within `callback` and is
  * torn down when it returns, so nested calls to {@link getExecutionCtx} resolve the same
@@ -52,6 +56,7 @@ export type ExecutionContext = Readonly<{
 export declare function runWithExecutionCtx<T>(context: ExecutionContext, callback: () => T): T;
 /**
  * Reads the current execution context.
+ *
  * @group Utils
  * @category Execution Context
  * @returns The active {@link ExecutionContext} for the current async scope.
