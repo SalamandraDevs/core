@@ -1,4 +1,5 @@
 import { createPool } from 'mysql2/promise';
+import { CustomError } from '@salamandradevs/tools/shared';
 import type { Pool } from 'mysql2/promise';
 
 import type { IDbConnection } from '../contracts.js';
@@ -34,6 +35,8 @@ export class MySqlDbConnection implements IDbConnection<Pool> {
    * Opens the MySQL connection and returns the backend handle.
    *
    * @returns Connected MySQL backend handle.
+   * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+   *   connection; the driver error is kept as the cause.
    */
   async connect(): Promise<Pool> {
     this.pool = createPool({
@@ -41,7 +44,17 @@ export class MySqlDbConnection implements IDbConnection<Pool> {
       database: this.databaseName
     });
 
-    await this.pool.query('SELECT 1');
+    // `createPool` opens nothing; the probe query is the first network call, so it is the
+    // point where an unreachable server or a rejected login surfaces.
+    try {
+      await this.pool.query('SELECT 1');
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_BACKEND_ERROR',
+        message: 'MySQL connection failed',
+        cause: error
+      });
+    }
 
     return this.pool;
   }

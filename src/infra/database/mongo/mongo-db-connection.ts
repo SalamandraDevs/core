@@ -1,4 +1,5 @@
 import { MongoClient, type Db } from 'mongodb';
+import { CustomError } from '@salamandradevs/tools/shared';
 
 import type { IDbConnection } from '../contracts.js';
 
@@ -35,9 +36,20 @@ export class MongoDbConnection implements IDbConnection<Db> {
    * Opens the Mongo connection and returns the database handle.
    *
    * @returns Connected Mongo database handle.
+   * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+   *   connection; the driver error is kept as the cause.
    */
   async connect(): Promise<Db> {
-    await this.client.connect();
+    try {
+      await this.client.connect();
+    } catch (error: unknown) {
+      throw new CustomError({
+        name: 'DB_BACKEND_ERROR',
+        message: 'MongoDB connection failed',
+        cause: error
+      });
+    }
+
     return this.client.db(this.dbName);
   }
 

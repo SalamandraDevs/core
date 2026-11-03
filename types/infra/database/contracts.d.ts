@@ -18,6 +18,8 @@ export interface IDatabaseProvider {
      * Opens the underlying connection and caches its backend-tagged handle.
      *
      * @returns The connected database handle.
+     * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+     *   connection; the driver error is kept as the cause.
      */
     connect(): Promise<DatabaseHandle>;
     /**
@@ -45,7 +47,13 @@ export interface IDatabaseProvider {
  * @template THandle - Raw driver handle produced by `connect`.
  */
 export interface IDbConnection<THandle> {
-    /** Opens the database connection and returns the backend handle. */
+    /**
+     * Opens the database connection and returns the backend handle.
+     *
+     * @returns The connected raw driver handle.
+     * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+     *   connection; the driver error is kept as the cause.
+     */
     connect(): Promise<THandle>;
     /** Closes the database connection. */
     close(): Promise<void>;

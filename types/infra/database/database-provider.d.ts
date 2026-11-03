@@ -33,6 +33,8 @@ export declare class DatabaseProvider implements IDatabaseProvider {
      * without a matching `case` fails the `never` exhaustiveness check. Calling it again
      * reconnects and replaces the cached handle.
      * @returns The connected database handle.
+     * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+     *   connection; propagated from the backend connection.
      */
     connect(): Promise<DatabaseHandle>;
     /**

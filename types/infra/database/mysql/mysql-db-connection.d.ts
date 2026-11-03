@@ -27,6 +27,8 @@ export declare class MySqlDbConnection implements IDbConnection<Pool> {
      * Opens the MySQL connection and returns the backend handle.
      *
      * @returns Connected MySQL backend handle.
+     * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+     *   connection; the driver error is kept as the cause.
      */
     connect(): Promise<Pool>;
     /**

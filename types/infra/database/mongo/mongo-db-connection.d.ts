@@ -27,6 +27,8 @@ export declare class MongoDbConnection implements IDbConnection<Db> {
      * Opens the Mongo connection and returns the database handle.
      *
      * @returns Connected Mongo database handle.
+     * @throws {CustomError} DB_BACKEND_ERROR when the server is unreachable or rejects the
+     *   connection; the driver error is kept as the cause.
      */
     connect(): Promise<Db>;
     /**
