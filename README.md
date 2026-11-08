@@ -22,8 +22,10 @@ details remain inside adapters.
 
 `src/database` contains the persistence contracts, dataset provisioner, and concrete MongoDB
 and MySQL adapters. `src/records` contains the base record model and handler used by services
-to build tenant-aware record policies. `src/utils` contains the execution-context helpers that
-bind service work to the current request or job.
+to build tenant-aware record policies. `src/runtime` holds the runtime execution context that
+binds service work to the current request or job. `src/keys` holds the key contracts, the
+Jose, OpenBao, and JWKS providers, and their factory. `src/tokens` holds the access-token
+verifier and claims schema.
 
 Services such as `@salamandradevs/auth` use Core to keep persistence details out of transport and
 application code while still enforcing tenant boundaries close to the record layer.

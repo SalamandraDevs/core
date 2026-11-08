@@ -1,6 +1,6 @@
 {
   "name": "@salamandradevs/core",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Shared record layer and database contracts",
   "type": "module",
   "packageManager": "pnpm@12.16.1",
@@ -47,6 +47,7 @@
   ],
   "dependencies": {
     "@salamandradevs/tools": "^0.1.0",
+    "jose": "^6.2.12",
     "mongodb": "^7.6.0",
     "mysql2": "^3.23.4",
     "zod": "^4.5.4"
