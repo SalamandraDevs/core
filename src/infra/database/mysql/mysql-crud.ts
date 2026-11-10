@@ -2,9 +2,9 @@ import { CustomError, errMessages } from '@salamandradevs/tools/shared';
 import type { Connection, ExecuteValues, FieldPacket, Pool } from 'mysql2/promise';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-import { assertCriteria, isMySqlDupKeyError } from '../utils.js';
+import { assertCriteria, assertFindAllFilter, isMySqlDupKeyError } from '../utils.js';
 import type { ICrud } from '../contracts.js';
-import type { FindOptions, FindOrder, FindResult } from '../types.js';
+import type { FindAllOptions, FindOptions, FindOrder, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -112,6 +112,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
     assertCriteria(criteria);
     const limit: number = options.limit;
     const queryLimit: number = limit + 1;
+
     const filterSql: [string, ExecuteValues[]] = this.buildFindFilter(
       criteria,
       options.cursor,
@@ -121,6 +122,7 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${filterSql[0]}` +
       this.buildSort(options.orderBy) +
       ' LIMIT ?';
+
     const [records]: [RowDataPacket[], FieldPacket[]] = await this.pool.execute<
       RowDataPacket[]
     >(sql, [...filterSql[1], queryLimit]);
@@ -133,6 +135,47 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       records: returnedRecords.map((record: RowDataPacket) => this.returnRecord(record)),
       hasNextPage
     };
+  }
+
+  /**
+   * Returns every record matching the exact criteria and optional range bounds.
+   *
+   * @remarks
+   * Unbounded by default: a numeric `options.limit` caps the result and may truncate it,
+   * while `null` reads the full match set. `greaterThan` and `lessThan` are translated to
+   * `>` and `<` here, so those operators never cross {@link ICrud}; order is applied only
+   * when `options.orderBy` is given, otherwise the backend's natural order stands.
+   * @param criteria - Exact field criteria; may be empty when a range bound is given.
+   * @param options - Limit, optional order, and optional exclusive range bounds.
+   * @returns Every matching backend-neutral record (without surrogate `id`).
+   * @throws {TypeError} When no criteria or range bound selects records; see
+   *   {@link assertFindAllFilter}.
+   */
+  async findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]> {
+    // criteria, greaterThan, or lessThan must select records
+    assertFindAllFilter(criteria, options.greaterThan, options.lessThan);
+    const [whereSql, values]: [string, ExecuteValues[]] = this.buildRangeFilter(
+      criteria,
+      options.greaterThan,
+      options.lessThan
+    );
+
+    // A null limit reads the full match set; a number appends ` LIMIT ?` and may truncate.
+    const orderSql: string = options.orderBy ? this.buildSort(options.orderBy) : '';
+    const limitSql: string = options.limit !== null ? ' LIMIT ?' : '';
+    const sql: string =
+      `SELECT * FROM ${this.pool.escapeId(this.tableName)} WHERE ${whereSql}` +
+      orderSql +
+      limitSql;
+
+    // Bind the LIMIT value after the WHERE values so it lines up with the trailing `?`.
+    const bindings: ExecuteValues[] =
+      options.limit !== null ? [...values, options.limit] : values;
+    const [records]: [RowDataPacket[], FieldPacket[]] = await this.pool.execute<
+      RowDataPacket[]
+    >(sql, bindings);
+
+    return records.map((record: RowDataPacket) => this.returnRecord(record));
   }
 
   /**
@@ -383,6 +426,49 @@ export class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
       `${criteriaConditions.join(' AND ')} AND (${cursorSql})`,
       [...values, ...cursorValues]
     ];
+  }
+
+  /**
+   * Builds a MySQL WHERE predicate from exact criteria and optional exclusive range bounds.
+   *
+   * @remarks
+   * Emits one `= ?` (or `IS NULL`) clause per exact field and one `> ?` / `< ?` clause per
+   * bound, joined with `AND`, so a field bounded on both sides is matched between them.
+   * Exact criteria and a range on the same field both apply; keep a field in one or the
+   * other to avoid a contradictory predicate.
+   * @param criteria - Exact field criteria owned by the caller policy.
+   * @param greaterThan - Fields with an exclusive lower bound, or undefined.
+   * @param lessThan - Fields with an exclusive upper bound, or undefined.
+   * @returns SQL predicate text and its bound values.
+   */
+  private buildRangeFilter(
+    criteria: Partial<T>,
+    greaterThan: Partial<T> | undefined,
+    lessThan: Partial<T> | undefined
+  ): [string, ExecuteValues[]] {
+    const conditions: string[] = [];
+    const values: ExecuteValues[] = [];
+
+    for (const [field, value] of Object.entries(criteria)) {
+      if (value === null) {
+        conditions.push(`${this.pool.escapeId(field)} IS NULL`);
+      } else {
+        conditions.push(`${this.pool.escapeId(field)} = ?`);
+        values.push(value as ExecuteValues);
+      }
+    }
+
+    for (const [field, value] of Object.entries(greaterThan ?? {})) {
+      conditions.push(`${this.pool.escapeId(field)} > ?`);
+      values.push(value as ExecuteValues);
+    }
+
+    for (const [field, value] of Object.entries(lessThan ?? {})) {
+      conditions.push(`${this.pool.escapeId(field)} < ?`);
+      values.push(value as ExecuteValues);
+    }
+
+    return [conditions.join(' AND '), values];
   }
 
   /**

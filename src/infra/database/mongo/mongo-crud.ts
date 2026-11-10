@@ -1,10 +1,10 @@
 import { CustomError, errMessages } from '@salamandradevs/tools/shared';
-import type { Collection, Filter, Sort } from 'mongodb';
+import type { Collection, Filter, FindCursor, Sort } from 'mongodb';
 import type { OptionalUnlessRequiredId, WithId } from 'mongodb';
 
-import { assertCriteria, isMongoDupKeyError } from '../utils.js';
+import { assertCriteria, assertFindAllFilter, isMongoDupKeyError } from '../utils.js';
 import type { ICrud } from '../contracts.js';
-import type { FindOptions, FindOrder, FindResult } from '../types.js';
+import type { FindAllOptions, FindOptions, FindOrder, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 
 /**
@@ -199,6 +199,46 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
   }
 
   /**
+   * Returns every record matching the exact criteria and optional range bounds.
+   *
+   * @remarks
+   * Unbounded by default: a numeric `options.limit` caps the result and may truncate it,
+   * while `null` reads the full match set. `greaterThan` and `lessThan` are translated to
+   * `$gt` and `$lt` here, so those operators never cross {@link ICrud}; order is applied
+   * only when `options.orderBy` is given, otherwise the backend's natural order stands.
+   * @param criteria - Exact field criteria; may be empty when a range bound is given.
+   * @param options - Limit, optional order, and optional exclusive range bounds.
+   * @returns Every matching backend-neutral record (without `_id`).
+   * @throws {TypeError} When no criteria or range bound selects records; see
+   *   {@link assertFindAllFilter}.
+   */
+  async findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]> {
+    // At least one of criteria, greaterThan, or lessThan must select records.
+    assertFindAllFilter(criteria, options.greaterThan, options.lessThan);
+
+    const filter: Filter<T> = this.buildRangeFilter(
+      criteria,
+      options.greaterThan,
+      options.lessThan
+    );
+
+    let query: FindCursor<WithId<T>> = this.collection.find(filter);
+
+    if (options.orderBy) {
+      query = query.sort(this.buildSort(options.orderBy));
+    }
+
+    // A null limit reads the full match set; a number caps it and may truncate silently.
+    if (options.limit !== null) {
+      query = query.limit(options.limit);
+    }
+
+    const documents: WithId<T>[] = await query.toArray();
+
+    return documents.map((document: WithId<T>) => this.returnRecord(document));
+  }
+
+  /**
    * Builds a MongoDB filter from backend-neutral exact criteria and cursor options.
    *
    * @param criteria - Exact field criteria already owned by the caller policy.
@@ -240,6 +280,36 @@ export class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
         }
       ]
     } as Filter<T>;
+  }
+
+  /**
+   * Builds a MongoDB filter from exact criteria and optional exclusive range bounds.
+   *
+   * @remarks
+   * Merges per-field range operators, so a field bounded on both sides yields a single `{
+   * $gt, $lt }` object. Exact criteria and a range on the same field are not combined; keep
+   * a field in one or the other.
+   * @param criteria - Exact field criteria owned by the caller policy.
+   * @param greaterThan - Fields with an exclusive lower bound, or undefined.
+   * @param lessThan - Fields with an exclusive upper bound, or undefined.
+   * @returns MongoDB filter translated from the backend-neutral inputs.
+   */
+  private buildRangeFilter(
+    criteria: Partial<T>,
+    greaterThan: Partial<T> | undefined,
+    lessThan: Partial<T> | undefined
+  ): Filter<T> {
+    const filter: Record<string, unknown> = { ...criteria };
+
+    for (const [field, value] of Object.entries(greaterThan ?? {})) {
+      filter[field] = { ...(filter[field] as object), $gt: value };
+    }
+
+    for (const [field, value] of Object.entries(lessThan ?? {})) {
+      filter[field] = { ...(filter[field] as object), $lt: value };
+    }
+
+    return filter as Filter<T>;
   }
 
   /**

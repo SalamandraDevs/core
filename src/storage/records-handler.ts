@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import { getExecutionCtx } from '../runtime/context.js';
 import type { ICrud } from '../infra/database/contracts.js';
-import type { FindOptions, FindOrder, FindResult } from '../infra/database/types.js';
+import type { FindAllOptions, FindOptions, FindOrder } from '../infra/database/types.js';
+import type { FindResult } from '../infra/database/types.js';
 import type { BaseRecord, RecordChanges, RecordCreateInput } from './types.js';
 import type { RecordFindOptions } from './types.js';
 
@@ -154,5 +155,23 @@ export abstract class RecordsHandler<T extends BaseRecord> {
     };
 
     return this.crud.find({ ...criteria, tenantId }, findOptions);
+  }
+
+  /**
+   * Reads every record matching the criteria, across all tenants.
+   *
+   * @remarks
+   * Unlike {@link RecordsHandler.find}, this applies no tenant filter and reads no execution
+   * context, so it runs outside any request scope, such as at process startup or a
+   * maintenance cron. Reserved for process-wide concerns that must observe every tenant's
+   * records, such as rebuilding an in-memory revocation set; it must never be reached from
+   * a user-facing route, where tenant isolation must hold. A numeric `options.limit` caps
+   * the result and may truncate it, so pass `null` when the full set is required.
+   * @param criteria - Record fields and values used to filter across all tenants.
+   * @param options - Limit, optional order, and optional exclusive range bounds.
+   * @returns Every matching record, across all tenants.
+   */
+  findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]> {
+    return this.crud.findAll(criteria, options);
   }
 }

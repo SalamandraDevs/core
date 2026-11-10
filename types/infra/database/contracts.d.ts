@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod';
 import type { DatabaseBackend, DatabaseHandle } from './types.js';
-import type { FindOptions, FindResult } from './types.js';
+import type { FindAllOptions, FindOptions, FindResult } from './types.js';
 /**
  * Backend-neutral database provider that owns one connection lifecycle.
  *
@@ -104,6 +104,8 @@ export interface ICrud<T> {
     delete(criteria: Partial<T>): Promise<T | null>;
     /** Finds records matching all criteria fields and required page controls. */
     find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
+    /** Returns every record matching the criteria and optional range bounds, unpaged. */
+    findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]>;
 }
 /**
  * Converts a Zod schema into a backend-specific schema definition.

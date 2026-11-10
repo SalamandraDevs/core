@@ -1,6 +1,6 @@
 import type { Collection } from 'mongodb';
 import type { ICrud } from '../contracts.js';
-import type { FindOptions, FindResult } from '../types.js';
+import type { FindAllOptions, FindOptions, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 /**
  * MongoDB implementation of the backend-neutral {@link ICrud} contract.
@@ -84,6 +84,21 @@ export declare class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
      */
     find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
     /**
+     * Returns every record matching the exact criteria and optional range bounds.
+     *
+     * @remarks
+     * Unbounded by default: a numeric `options.limit` caps the result and may truncate it,
+     * while `null` reads the full match set. `greaterThan` and `lessThan` are translated to
+     * `$gt` and `$lt` here, so those operators never cross {@link ICrud}; order is applied
+     * only when `options.orderBy` is given, otherwise the backend's natural order stands.
+     * @param criteria - Exact field criteria; may be empty when a range bound is given.
+     * @param options - Limit, optional order, and optional exclusive range bounds.
+     * @returns Every matching backend-neutral record (without `_id`).
+     * @throws {TypeError} When no criteria or range bound selects records; see
+     *   {@link assertFindAllFilter}.
+     */
+    findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]>;
+    /**
      * Builds a MongoDB filter from backend-neutral exact criteria and cursor options.
      *
      * @param criteria - Exact field criteria already owned by the caller policy.
@@ -92,6 +107,19 @@ export declare class MongoCrud<T extends GeneralRecord> implements ICrud<T> {
      * @returns MongoDB filter translated from the backend-neutral find inputs.
      */
     private buildFindFilter;
+    /**
+     * Builds a MongoDB filter from exact criteria and optional exclusive range bounds.
+     *
+     * @remarks
+     * Merges per-field range operators, so a field bounded on both sides yields a single `{
+     * $gt, $lt }` object. Exact criteria and a range on the same field are not combined; keep
+     * a field in one or the other.
+     * @param criteria - Exact field criteria owned by the caller policy.
+     * @param greaterThan - Fields with an exclusive lower bound, or undefined.
+     * @param lessThan - Fields with an exclusive upper bound, or undefined.
+     * @returns MongoDB filter translated from the backend-neutral inputs.
+     */
+    private buildRangeFilter;
     /**
      * Builds a MongoDB sort document from backend-neutral ordered fields.
      *

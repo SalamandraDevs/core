@@ -148,6 +148,33 @@ export type FindOptions<T> = Readonly<{
 }>;
 
 /**
+ * Backend-neutral options accepted by unpaged find-all operations.
+ *
+ * - Limit: Maximum records returned, or null to return every match unbounded.
+ * - OrderBy: Ordered fields applied to the result, or undefined for the backend's order.
+ * - GreaterThan: Fields with an exclusive lower bound (`field > value`), or undefined.
+ * - LessThan: Fields with an exclusive upper bound (`field < value`), or undefined.
+ *
+ * @remarks
+ * Drives the cross-collection scan {@link ICrud.findAll} runs for process-wide concerns, not
+ * request-time listing. A numeric `limit` caps the result and may truncate it silently, so
+ * it is a caller's deliberate bound; `null` reads the full match set. `greaterThan` and
+ * `lessThan` are translated to each backend's range operators by the adapter, so those
+ * operators never cross the contract; for example, `lessThan: { expiresAt: new Date() }`
+ * selects records whose `expiresAt` is strictly before now, as a prune of expired records
+ * would. At least one of `criteria`, `greaterThan`, or `lessThan` must select records.
+ * @group Infra
+ * @category Database
+ * @template T - Record shape whose fields the bounds reference.
+ */
+export type FindAllOptions<T> = Readonly<{
+  limit: number | null;
+  orderBy?: readonly FindOrder[];
+  greaterThan?: Partial<T>;
+  lessThan?: Partial<T>;
+}>;
+
+/**
  * Backend-neutral find result with page metadata.
  *
  * - Records: Records returned after applying criteria and find options.

@@ -13,6 +13,22 @@
  */
 export declare function assertCriteria(input: unknown): asserts input is Record<string, unknown>;
 /**
+ * Asserts a find-all filter selects records through criteria or a range bound.
+ *
+ * @remarks
+ * The guard the CRUD adapters run before an unpaged `findAll`, so an unfiltered scan over a
+ * whole collection can never be issued by accident. Unlike {@link assertCriteria}, an empty
+ * `criteria` is allowed when a `greaterThan` or `lessThan` bound selects records instead;
+ * at least one of the three must carry a field.
+ * @group Infra
+ * @category Database
+ * @param criteria - Exact field criteria, possibly empty.
+ * @param greaterThan - Fields with an exclusive lower bound, or undefined.
+ * @param lessThan - Fields with an exclusive upper bound, or undefined.
+ * @throws {TypeError} When none of criteria, greaterThan, or lessThan carries a field.
+ */
+export declare function assertFindAllFilter(criteria: unknown, greaterThan: unknown, lessThan: unknown): void;
+/**
  * Detects MongoDB duplicate key errors.
  *
  * @remarks

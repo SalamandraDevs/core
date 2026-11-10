@@ -1,6 +1,6 @@
 import type { Pool } from 'mysql2/promise';
 import type { ICrud } from '../contracts.js';
-import type { FindOptions, FindResult } from '../types.js';
+import type { FindAllOptions, FindOptions, FindResult } from '../types.js';
 import type { GeneralRecord } from '../types.js';
 /**
  * MySQL implementation of the backend-neutral {@link ICrud} contract.
@@ -63,6 +63,21 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
      */
     find(criteria: Partial<T>, options: FindOptions<T>): Promise<FindResult<T>>;
     /**
+     * Returns every record matching the exact criteria and optional range bounds.
+     *
+     * @remarks
+     * Unbounded by default: a numeric `options.limit` caps the result and may truncate it,
+     * while `null` reads the full match set. `greaterThan` and `lessThan` are translated to
+     * `>` and `<` here, so those operators never cross {@link ICrud}; order is applied only
+     * when `options.orderBy` is given, otherwise the backend's natural order stands.
+     * @param criteria - Exact field criteria; may be empty when a range bound is given.
+     * @param options - Limit, optional order, and optional exclusive range bounds.
+     * @returns Every matching backend-neutral record (without surrogate `id`).
+     * @throws {TypeError} When no criteria or range bound selects records; see
+     *   {@link assertFindAllFilter}.
+     */
+    findAll(criteria: Partial<T>, options: FindAllOptions<T>): Promise<readonly T[]>;
+    /**
      * Updates one record matching all criteria fields and returns the updated record, or
      * null.
      *
@@ -114,6 +129,20 @@ export declare class MySqlCrud<T extends GeneralRecord> implements ICrud<T> {
      * @returns SQL predicate text and its bound values.
      */
     private buildFindFilter;
+    /**
+     * Builds a MySQL WHERE predicate from exact criteria and optional exclusive range bounds.
+     *
+     * @remarks
+     * Emits one `= ?` (or `IS NULL`) clause per exact field and one `> ?` / `< ?` clause per
+     * bound, joined with `AND`, so a field bounded on both sides is matched between them.
+     * Exact criteria and a range on the same field both apply; keep a field in one or the
+     * other to avoid a contradictory predicate.
+     * @param criteria - Exact field criteria owned by the caller policy.
+     * @param greaterThan - Fields with an exclusive lower bound, or undefined.
+     * @param lessThan - Fields with an exclusive upper bound, or undefined.
+     * @returns SQL predicate text and its bound values.
+     */
+    private buildRangeFilter;
     /**
      * Builds a MySQL ORDER BY clause from backend-neutral order definitions.
      *
