@@ -31,4 +31,48 @@ export declare const accessTokenClaimsSchema: z.ZodObject<{
     tenantId: z.ZodString;
     roles: z.ZodArray<z.ZodString>;
 }, z.core.$strip>;
+/** API key usage plan schema; the plan selects the tenant's rate-limit tier policy. */
+export declare const apiKeyPlanSchema: z.ZodEnum<{
+    platform: "platform";
+    community: "community";
+    client: "client";
+}>;
+/**
+ * API key wire-format policy every issuer and verifier shares.
+ *
+ * - Prefix: Fixed key prefix; part of the signed material, so changing it invalidates every
+ *   issued key.
+ * - MaxLength: Upper bound on an accepted key's character length; sheds oversized input
+ *   before any decoding or crypto.
+ *
+ * @remarks
+ * The prefix must not contain `.`, because the verifier splits the key on it, and the
+ * ceiling has a floor so a typo cannot reject every real key.
+ */
+export declare const apiKeyVerifyConfigSchema: z.ZodObject<{
+    prefix: z.ZodString;
+    maxLength: z.ZodNumber;
+}, z.core.$strict>;
+/**
+ * Signed API key payload schema.
+ *
+ * - V: Payload format version.
+ * - Kid: Identifier of the signing key that verifies the key.
+ * - Jti: Registry `recordId` of the key.
+ * - Tid: Tenant the key binds.
+ * - Plan: Usage plan; selects the tenant tier policy.
+ * - Exp: Expiry in Unix seconds.
+ */
+export declare const apiKeyPayloadSchema: z.ZodObject<{
+    v: z.ZodLiteral<2>;
+    kid: z.ZodString;
+    jti: z.ZodUUID;
+    tid: z.ZodString;
+    plan: z.ZodEnum<{
+        platform: "platform";
+        community: "community";
+        client: "client";
+    }>;
+    exp: z.ZodNumber;
+}, z.core.$strict>;
 //# sourceMappingURL=schema.d.ts.map

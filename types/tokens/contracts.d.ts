@@ -1,4 +1,4 @@
-import type { BearerToken, SessionGrant } from './types.js';
+import type { ApiKeyPayload, BearerToken, SessionGrant } from './types.js';
 /**
  * Access-token verification boundary.
  *
@@ -17,5 +17,24 @@ export interface IAccessTokenVerifier {
      * @returns Trusted session grant reconstructed from the credential.
      */
     verify(credential: BearerToken): Promise<SessionGrant>;
+}
+/**
+ * API key verification boundary.
+ *
+ * @remarks
+ * {@link ApiKeyVerifier} is the shipped implementation. It checks a key's structure,
+ * signature, and expiry and returns its payload; it makes no revocation decision, which
+ * belongs to the consuming service.
+ * @group Tokens
+ * @category API Keys
+ */
+export interface IApiKeyVerifier {
+    /**
+     * Verifies a key's structure, signature, and expiry, returning its payload.
+     *
+     * @param key - Value of the `x-api-key` header.
+     * @returns The verified key payload.
+     */
+    verify(key: string): Promise<ApiKeyPayload>;
 }
 //# sourceMappingURL=contracts.d.ts.map

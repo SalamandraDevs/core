@@ -60,6 +60,7 @@ export class AccessTokenVerifier implements IAccessTokenVerifier {
         audience: this.config.audience,
         clockTolerance: this.config.clockToleranceSecs
       });
+
       const claims: AccessTokenClaims = accessTokenClaimsSchema.parse(payload);
 
       return {

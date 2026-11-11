@@ -156,8 +156,9 @@ export type FindOptions<T> = Readonly<{
  * request-time listing. A numeric `limit` caps the result and may truncate it silently, so
  * it is a caller's deliberate bound; `null` reads the full match set. `greaterThan` and
  * `lessThan` are translated to each backend's range operators by the adapter, so those
- * operators never cross the contract. At least one of `criteria`, `greaterThan`, or
- * `lessThan` must select records.
+ * operators never cross the contract; for example, `lessThan: { expiresAt: new Date() }`
+ * selects records whose `expiresAt` is strictly before now, as a prune of expired records
+ * would. At least one of `criteria`, `greaterThan`, or `lessThan` must select records.
  * @group Infra
  * @category Database
  * @template T - Record shape whose fields the bounds reference.
