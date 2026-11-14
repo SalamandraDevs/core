@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@salamandradevs/tools':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       jose:
         specifier: ^6.2.12
         version: 6.2.15
@@ -304,8 +304,8 @@ packages:
     resolution: {integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==}
     engines: {node: ^14.18.0 || >=16.0.0}
 
-  '@salamandradevs/tools@0.2.0':
-    resolution: {integrity: sha512-o8ITC0PAwUhkBHgegBAOX+HnQdQOWQBLZCB+7y0kpGWb9/qUY/ChbvTRe79tmIaLNLpF0jp3anyTR0By7RImLA==}
+  '@salamandradevs/tools@0.2.1':
+    resolution: {integrity: sha512-7yqM0ttkwbJzrwu7d1i5I23GGBvZDejCZ5KUtLfe1XEWArjg4t+keOtGWt5T2ibN3Nx63UCNw4eh4xFQYUe3qQ==}
     engines: {node: '>=24'}
 
   '@shikijs/engine-oniguruma@3.23.0':
@@ -1089,7 +1089,7 @@ snapshots:
 
   '@pkgr/core@0.3.6': {}
 
-  '@salamandradevs/tools@0.2.0':
+  '@salamandradevs/tools@0.2.1':
     dependencies:
       zod: 4.5.4
 

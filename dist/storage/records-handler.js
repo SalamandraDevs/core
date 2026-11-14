@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getExecutionCtx } from '../runtime/context.js';
 /**
  * Base record handler that applies tenant scope and delegates persistence to an
  * {@link ICrud} adapter.
@@ -9,22 +8,25 @@ import { getExecutionCtx } from '../runtime/context.js';
  * Every operation derives the tenant (and, for writes, the actor) from the ambient
  * {@link ExecutionContext}, so callers never pass a tenant explicitly and cross-tenant
  * access is structurally prevented. Because each operation reads that context, every method
- * propagates the {@link getExecutionCtx} failure when no context is bound.
+ * propagates the {@link IExecutionCtxProvider.get} failure when no context is bound.
  * @group Storage
  * @category Storage
  * @template T - Concrete record type extending {@link BaseRecord}.
  */
 export class RecordsHandler {
     crud;
+    executionCtx;
     handlerName;
     /**
-     * Creates a record handler bound to one CRUD adapter.
+     * Creates a record handler bound to one CRUD adapter and one execution context provider.
      *
      * @param crud - Backend-neutral persistence contract for the record.
+     * @param executionCtx - Provider of the tenant and actor for the current request or job.
      * @param handlerName - Stored handler discriminator applied to created records.
      */
-    constructor(crud, handlerName) {
+    constructor(crud, executionCtx, handlerName) {
         this.crud = crud;
+        this.executionCtx = executionCtx;
         this.handlerName = handlerName;
     }
     /**
@@ -36,10 +38,10 @@ export class RecordsHandler {
      * created/updated timestamps.
      * @param record - BaseRecord input without policy-owned metadata.
      * @returns The created record.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     create(record) {
-        const { authenticated } = getExecutionCtx();
+        const { authenticated } = this.executionCtx.get();
         const now = new Date();
         return this.crud.create({
             ...record,
@@ -57,10 +59,10 @@ export class RecordsHandler {
      *
      * @param recordId - BaseRecord identifier (`recordId`).
      * @returns The matching record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     read(recordId) {
-        const { tenantId } = getExecutionCtx().authenticated;
+        const { tenantId } = this.executionCtx.get().authenticated;
         const criteria = {
             recordId,
             tenantId
@@ -77,10 +79,10 @@ export class RecordsHandler {
      * @param changes - Allowed field changes for the record; protected keys are rejected at
      *   compile time.
      * @returns The updated record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     update(recordId, changes) {
-        const { actorId, tenantId } = getExecutionCtx().authenticated;
+        const { actorId, tenantId } = this.executionCtx.get().authenticated;
         const criteria = {
             recordId,
             tenantId
@@ -100,10 +102,10 @@ export class RecordsHandler {
      * record from another tenant can never be targeted.
      * @param recordId - BaseRecord identifier (`recordId`).
      * @returns The deleted record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     delete(recordId) {
-        const { tenantId } = getExecutionCtx().authenticated;
+        const { tenantId } = this.executionCtx.get().authenticated;
         const criteria = {
             recordId,
             tenantId
@@ -121,10 +123,10 @@ export class RecordsHandler {
      * @param criteria - Optional record fields and values used to filter the records.
      * @param options - Required cursor and page-size controls.
      * @returns The matching page of records with its continuation cursor.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     find(criteria = {}, options) {
-        const { tenantId } = getExecutionCtx().authenticated;
+        const { tenantId } = this.executionCtx.get().authenticated;
         const findOrder = [
             { field: 'createdAt', direction: 'desc' },
             { field: 'recordId', direction: 'desc' }
@@ -154,4 +156,4 @@ export class RecordsHandler {
         return this.crud.findAll(criteria, options);
     }
 }
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoicmVjb3Jkcy1oYW5kbGVyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL3N0b3JhZ2UvcmVjb3Jkcy1oYW5kbGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxVQUFVLEVBQUUsTUFBTSxhQUFhLENBQUM7QUFFekMsT0FBTyxFQUFFLGVBQWUsRUFBRSxNQUFNLHVCQUF1QixDQUFDO0FBT3hEOzs7Ozs7Ozs7Ozs7O0dBYUc7QUFDSCxNQUFNLE9BQWdCLGNBQWM7SUFRYjtJQUNGO0lBUm5COzs7OztPQUtHO0lBQ0gsWUFDcUIsSUFBYyxFQUNoQixXQUE2QjtRQUQzQixTQUFJLEdBQUosSUFBSSxDQUFVO1FBQ2hCLGdCQUFXLEdBQVgsV0FBVyxDQUFrQjtJQUM3QyxDQUFDO0lBRUo7Ozs7Ozs7Ozs7T0FVRztJQUNILE1BQU0sQ0FBQyxNQUE0QjtRQUNqQyxNQUFNLEVBQUUsYUFBYSxFQUFFLEdBQUcsZUFBZSxFQUFFLENBQUM7UUFDNUMsTUFBTSxHQUFHLEdBQVMsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUU3QixPQUFPLElBQUksQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDO1lBQ3RCLEdBQUcsTUFBTTtZQUNULFdBQVcsRUFBRSxJQUFJLENBQUMsV0FBVztZQUM3QixRQUFRLEVBQUUsYUFBYSxDQUFDLFFBQVE7WUFDaEMsUUFBUSxFQUFFLFVBQVUsRUFBRTtZQUN0QixTQUFTLEVBQUUsR0FBRztZQUNkLFNBQVMsRUFBRSxhQUFhLENBQUMsT0FBTztZQUNoQyxTQUFTLEVBQUUsR0FBRztZQUNkLFNBQVMsRUFBRSxhQUFhLENBQUMsT0FBTztTQUM1QixDQUFDLENBQUM7SUFDVixDQUFDO0lBRUQ7Ozs7OztPQU1HO0lBQ0gsSUFBSSxDQUFDLFFBQWdCO1FBQ25CLE1BQU0sRUFBRSxRQUFRLEVBQUUsR0FBRyxlQUFlLEVBQUUsQ0FBQyxhQUFhLENBQUM7UUFFckQsTUFBTSxRQUFRLEdBQWU7WUFDM0IsUUFBUTtZQUNSLFFBQVE7U0FDSyxDQUFDO1FBRWhCLE9BQU8sSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsUUFBUSxDQUFDLENBQUM7SUFDbEMsQ0FBQztJQUVEOzs7Ozs7Ozs7OztPQVdHO0lBQ0gsTUFBTSxDQUFDLFFBQWdCLEVBQUUsT0FBeUI7UUFDaEQsTUFBTSxFQUFFLE9BQU8sRUFBRSxRQUFRLEVBQUUsR0FBRyxlQUFlLEVBQUUsQ0FBQyxhQUFhLENBQUM7UUFFOUQsTUFBTSxRQUFRLEdBQWU7WUFDM0IsUUFBUTtZQUNSLFFBQVE7U0FDSyxDQUFDO1FBRWhCLE9BQU8sSUFBSSxDQUFDLElBQUksQ0FBQyxNQUFNLENBQUMsUUFBUSxFQUFFO1lBQ2hDLEdBQUcsT0FBTztZQUNWLFNBQVMsRUFBRSxJQUFJLElBQUksRUFBRTtZQUNyQixTQUFTLEVBQUUsT0FBTztTQUNuQixDQUFDLENBQUM7SUFDTCxDQUFDO0lBRUQ7Ozs7Ozs7Ozs7T0FVRztJQUNILE1BQU0sQ0FBQyxRQUFnQjtRQUNyQixNQUFNLEVBQUUsUUFBUSxFQUFFLEdBQUcsZUFBZSxFQUFFLENBQUMsYUFBYSxDQUFDO1FBRXJELE1BQU0sUUFBUSxHQUFlO1lBQzNCLFFBQVE7WUFDUixRQUFRO1NBQ0ssQ0FBQztRQUVoQixPQUFPLElBQUksQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLFFBQVEsQ0FBQyxDQUFDO0lBQ3BDLENBQUM7SUFFRDs7Ozs7Ozs7Ozs7O09BWUc7SUFDSCxJQUFJLENBQUMsV0FBdUIsRUFBRSxFQUFFLE9BQTBCO1FBQ3hELE1BQU0sRUFBRSxRQUFRLEVBQUUsR0FBRyxlQUFlLEVBQUUsQ0FBQyxhQUFhLENBQUM7UUFFckQsTUFBTSxTQUFTLEdBQXlCO1lBQ3RDLEVBQUUsS0FBSyxFQUFFLFdBQVcsRUFBRSxTQUFTLEVBQUUsTUFBTSxFQUFFO1lBQ3pDLEVBQUUsS0FBSyxFQUFFLFVBQVUsRUFBRSxTQUFTLEVBQUUsTUFBTSxFQUFFO1NBQ3pDLENBQUM7UUFFRixNQUFNLFdBQVcsR0FBbUI7WUFDbEMsTUFBTSxFQUFFLE9BQU8sQ0FBQyxNQUEyQjtZQUMzQyxLQUFLLEVBQUUsT0FBTyxDQUFDLEtBQUs7WUFDcEIsT0FBTyxFQUFFLFNBQVM7U0FDbkIsQ0FBQztRQUVGLE9BQU8sSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsRUFBRSxHQUFHLFFBQVEsRUFBRSxRQUFRLEVBQUUsRUFBRSxXQUFXLENBQUMsQ0FBQztJQUNoRSxDQUFDO0lBRUQ7Ozs7Ozs7Ozs7Ozs7T0FhRztJQUNILE9BQU8sQ0FBQyxRQUFvQixFQUFFLE9BQTBCO1FBQ3RELE9BQU8sSUFBSSxDQUFDLElBQUksQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLE9BQU8sQ0FBQyxDQUFDO0lBQzlDLENBQUM7Q0FDRiJ9
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoicmVjb3Jkcy1oYW5kbGVyLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vc3JjL3N0b3JhZ2UvcmVjb3Jkcy1oYW5kbGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxVQUFVLEVBQUUsTUFBTSxhQUFhLENBQUM7QUFTekM7Ozs7Ozs7Ozs7Ozs7R0FhRztBQUNILE1BQU0sT0FBZ0IsY0FBYztJQVNiO0lBQ0E7SUFDRjtJQVZuQjs7Ozs7O09BTUc7SUFDSCxZQUNxQixJQUFjLEVBQ2QsWUFBbUMsRUFDckMsV0FBNkI7UUFGM0IsU0FBSSxHQUFKLElBQUksQ0FBVTtRQUNkLGlCQUFZLEdBQVosWUFBWSxDQUF1QjtRQUNyQyxnQkFBVyxHQUFYLFdBQVcsQ0FBa0I7SUFDN0MsQ0FBQztJQUVKOzs7Ozs7Ozs7O09BVUc7SUFDSCxNQUFNLENBQUMsTUFBNEI7UUFDakMsTUFBTSxFQUFFLGFBQWEsRUFBRSxHQUFHLElBQUksQ0FBQyxZQUFZLENBQUMsR0FBRyxFQUFFLENBQUM7UUFDbEQsTUFBTSxHQUFHLEdBQVMsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUU3QixPQUFPLElBQUksQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDO1lBQ3RCLEdBQUcsTUFBTTtZQUNULFdBQVcsRUFBRSxJQUFJLENBQUMsV0FBVztZQUM3QixRQUFRLEVBQUUsYUFBYSxDQUFDLFFBQVE7WUFDaEMsUUFBUSxFQUFFLFVBQVUsRUFBRTtZQUN0QixTQUFTLEVBQUUsR0FBRztZQUNkLFNBQVMsRUFBRSxhQUFhLENBQUMsT0FBTztZQUNoQyxTQUFTLEVBQUUsR0FBRztZQUNkLFNBQVMsRUFBRSxhQUFhLENBQUMsT0FBTztTQUM1QixDQUFDLENBQUM7SUFDVixDQUFDO0lBRUQ7Ozs7OztPQU1HO0lBQ0gsSUFBSSxDQUFDLFFBQWdCO1FBQ25CLE1BQU0sRUFBRSxRQUFRLEVBQUUsR0FBRyxJQUFJLENBQUMsWUFBWSxDQUFDLEdBQUcsRUFBRSxDQUFDLGFBQWEsQ0FBQztRQUUzRCxNQUFNLFFBQVEsR0FBZTtZQUMzQixRQUFRO1lBQ1IsUUFBUTtTQUNLLENBQUM7UUFFaEIsT0FBTyxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxRQUFRLENBQUMsQ0FBQztJQUNsQyxDQUFDO0lBRUQ7Ozs7Ozs7Ozs7O09BV0c7SUFDSCxNQUFNLENBQUMsUUFBZ0IsRUFBRSxPQUF5QjtRQUNoRCxNQUFNLEVBQUUsT0FBTyxFQUFFLFFBQVEsRUFBRSxHQUFHLElBQUksQ0FBQyxZQUFZLENBQUMsR0FBRyxFQUFFLENBQUMsYUFBYSxDQUFDO1FBRXBFLE1BQU0sUUFBUSxHQUFlO1lBQzNCLFFBQVE7WUFDUixRQUFRO1NBQ0ssQ0FBQztRQUVoQixPQUFPLElBQUksQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLFFBQVEsRUFBRTtZQUNoQyxHQUFHLE9BQU87WUFDVixTQUFTLEVBQUUsSUFBSSxJQUFJLEVBQUU7WUFDckIsU0FBUyxFQUFFLE9BQU87U0FDbkIsQ0FBQyxDQUFDO0lBQ0wsQ0FBQztJQUVEOzs7Ozs7Ozs7O09BVUc7SUFDSCxNQUFNLENBQUMsUUFBZ0I7UUFDckIsTUFBTSxFQUFFLFFBQVEsRUFBRSxHQUFHLElBQUksQ0FBQyxZQUFZLENBQUMsR0FBRyxFQUFFLENBQUMsYUFBYSxDQUFDO1FBRTNELE1BQU0sUUFBUSxHQUFlO1lBQzNCLFFBQVE7WUFDUixRQUFRO1NBQ0ssQ0FBQztRQUVoQixPQUFPLElBQUksQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLFFBQVEsQ0FBQyxDQUFDO0lBQ3BDLENBQUM7SUFFRDs7Ozs7Ozs7Ozs7O09BWUc7SUFDSCxJQUFJLENBQUMsV0FBdUIsRUFBRSxFQUFFLE9BQTBCO1FBQ3hELE1BQU0sRUFBRSxRQUFRLEVBQUUsR0FBRyxJQUFJLENBQUMsWUFBWSxDQUFDLEdBQUcsRUFBRSxDQUFDLGFBQWEsQ0FBQztRQUUzRCxNQUFNLFNBQVMsR0FBeUI7WUFDdEMsRUFBRSxLQUFLLEVBQUUsV0FBVyxFQUFFLFNBQVMsRUFBRSxNQUFNLEVBQUU7WUFDekMsRUFBRSxLQUFLLEVBQUUsVUFBVSxFQUFFLFNBQVMsRUFBRSxNQUFNLEVBQUU7U0FDekMsQ0FBQztRQUVGLE1BQU0sV0FBVyxHQUFtQjtZQUNsQyxNQUFNLEVBQUUsT0FBTyxDQUFDLE1BQTJCO1lBQzNDLEtBQUssRUFBRSxPQUFPLENBQUMsS0FBSztZQUNwQixPQUFPLEVBQUUsU0FBUztTQUNuQixDQUFDO1FBRUYsT0FBTyxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxFQUFFLEdBQUcsUUFBUSxFQUFFLFFBQVEsRUFBRSxFQUFFLFdBQVcsQ0FBQyxDQUFDO0lBQ2hFLENBQUM7SUFFRDs7Ozs7Ozs7Ozs7OztPQWFHO0lBQ0gsT0FBTyxDQUFDLFFBQW9CLEVBQUUsT0FBMEI7UUFDdEQsT0FBTyxJQUFJLENBQUMsSUFBSSxDQUFDLE9BQU8sQ0FBQyxRQUFRLEVBQUUsT0FBTyxDQUFDLENBQUM7SUFDOUMsQ0FBQztDQUNGIn0=

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { getExecutionCtx } from '../runtime/context.js';
 import type { ICrud } from '../infra/database/contracts.js';
+import type { IExecutionCtxProvider } from '../runtime/contracts.js';
 import type { FindAllOptions, FindOptions, FindOrder } from '../infra/database/types.js';
 import type { FindResult } from '../infra/database/types.js';
 import type { BaseRecord, RecordChanges, RecordCreateInput } from './types.js';
@@ -16,20 +16,22 @@ import type { RecordFindOptions } from './types.js';
  * Every operation derives the tenant (and, for writes, the actor) from the ambient
  * {@link ExecutionContext}, so callers never pass a tenant explicitly and cross-tenant
  * access is structurally prevented. Because each operation reads that context, every method
- * propagates the {@link getExecutionCtx} failure when no context is bound.
+ * propagates the {@link IExecutionCtxProvider.get} failure when no context is bound.
  * @group Storage
  * @category Storage
  * @template T - Concrete record type extending {@link BaseRecord}.
  */
 export abstract class RecordsHandler<T extends BaseRecord> {
   /**
-   * Creates a record handler bound to one CRUD adapter.
+   * Creates a record handler bound to one CRUD adapter and one execution context provider.
    *
    * @param crud - Backend-neutral persistence contract for the record.
+   * @param executionCtx - Provider of the tenant and actor for the current request or job.
    * @param handlerName - Stored handler discriminator applied to created records.
    */
   protected constructor(
     protected readonly crud: ICrud<T>,
+    protected readonly executionCtx: IExecutionCtxProvider,
     private readonly handlerName: T['handlerName']
   ) {}
 
@@ -42,10 +44,10 @@ export abstract class RecordsHandler<T extends BaseRecord> {
    * created/updated timestamps.
    * @param record - BaseRecord input without policy-owned metadata.
    * @returns The created record.
-   * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+   * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
    */
   create(record: RecordCreateInput<T>): Promise<T> {
-    const { authenticated } = getExecutionCtx();
+    const { authenticated } = this.executionCtx.get();
     const now: Date = new Date();
 
     return this.crud.create({
@@ -65,10 +67,10 @@ export abstract class RecordsHandler<T extends BaseRecord> {
    *
    * @param recordId - BaseRecord identifier (`recordId`).
    * @returns The matching record, or `null` when none exists for the tenant.
-   * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+   * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
    */
   read(recordId: string): Promise<T | null> {
-    const { tenantId } = getExecutionCtx().authenticated;
+    const { tenantId } = this.executionCtx.get().authenticated;
 
     const criteria: Partial<T> = {
       recordId,
@@ -88,10 +90,10 @@ export abstract class RecordsHandler<T extends BaseRecord> {
    * @param changes - Allowed field changes for the record; protected keys are rejected at
    *   compile time.
    * @returns The updated record, or `null` when none exists for the tenant.
-   * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+   * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
    */
   update(recordId: string, changes: RecordChanges<T>): Promise<T | null> {
-    const { actorId, tenantId } = getExecutionCtx().authenticated;
+    const { actorId, tenantId } = this.executionCtx.get().authenticated;
 
     const criteria: Partial<T> = {
       recordId,
@@ -114,10 +116,10 @@ export abstract class RecordsHandler<T extends BaseRecord> {
    * record from another tenant can never be targeted.
    * @param recordId - BaseRecord identifier (`recordId`).
    * @returns The deleted record, or `null` when none exists for the tenant.
-   * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+   * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
    */
   delete(recordId: string): Promise<T | null> {
-    const { tenantId } = getExecutionCtx().authenticated;
+    const { tenantId } = this.executionCtx.get().authenticated;
 
     const criteria: Partial<T> = {
       recordId,
@@ -138,10 +140,10 @@ export abstract class RecordsHandler<T extends BaseRecord> {
    * @param criteria - Optional record fields and values used to filter the records.
    * @param options - Required cursor and page-size controls.
    * @returns The matching page of records with its continuation cursor.
-   * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+   * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
    */
   find(criteria: Partial<T> = {}, options: RecordFindOptions): Promise<FindResult<T>> {
-    const { tenantId } = getExecutionCtx().authenticated;
+    const { tenantId } = this.executionCtx.get().authenticated;
 
     const findOrder: readonly FindOrder[] = [
       { field: 'createdAt', direction: 'desc' },

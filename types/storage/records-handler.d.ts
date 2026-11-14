@@ -1,4 +1,5 @@
 import type { ICrud } from '../infra/database/contracts.js';
+import type { IExecutionCtxProvider } from '../runtime/contracts.js';
 import type { FindAllOptions } from '../infra/database/types.js';
 import type { FindResult } from '../infra/database/types.js';
 import type { BaseRecord, RecordChanges, RecordCreateInput } from './types.js';
@@ -12,21 +13,23 @@ import type { RecordFindOptions } from './types.js';
  * Every operation derives the tenant (and, for writes, the actor) from the ambient
  * {@link ExecutionContext}, so callers never pass a tenant explicitly and cross-tenant
  * access is structurally prevented. Because each operation reads that context, every method
- * propagates the {@link getExecutionCtx} failure when no context is bound.
+ * propagates the {@link IExecutionCtxProvider.get} failure when no context is bound.
  * @group Storage
  * @category Storage
  * @template T - Concrete record type extending {@link BaseRecord}.
  */
 export declare abstract class RecordsHandler<T extends BaseRecord> {
     protected readonly crud: ICrud<T>;
+    protected readonly executionCtx: IExecutionCtxProvider;
     private readonly handlerName;
     /**
-     * Creates a record handler bound to one CRUD adapter.
+     * Creates a record handler bound to one CRUD adapter and one execution context provider.
      *
      * @param crud - Backend-neutral persistence contract for the record.
+     * @param executionCtx - Provider of the tenant and actor for the current request or job.
      * @param handlerName - Stored handler discriminator applied to created records.
      */
-    protected constructor(crud: ICrud<T>, handlerName: T['handlerName']);
+    protected constructor(crud: ICrud<T>, executionCtx: IExecutionCtxProvider, handlerName: T['handlerName']);
     /**
      * Creates a new record for the current execution context tenant.
      *
@@ -36,7 +39,7 @@ export declare abstract class RecordsHandler<T extends BaseRecord> {
      * created/updated timestamps.
      * @param record - BaseRecord input without policy-owned metadata.
      * @returns The created record.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     create(record: RecordCreateInput<T>): Promise<T>;
     /**
@@ -44,7 +47,7 @@ export declare abstract class RecordsHandler<T extends BaseRecord> {
      *
      * @param recordId - BaseRecord identifier (`recordId`).
      * @returns The matching record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     read(recordId: string): Promise<T | null>;
     /**
@@ -57,7 +60,7 @@ export declare abstract class RecordsHandler<T extends BaseRecord> {
      * @param changes - Allowed field changes for the record; protected keys are rejected at
      *   compile time.
      * @returns The updated record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     update(recordId: string, changes: RecordChanges<T>): Promise<T | null>;
     /**
@@ -69,7 +72,7 @@ export declare abstract class RecordsHandler<T extends BaseRecord> {
      * record from another tenant can never be targeted.
      * @param recordId - BaseRecord identifier (`recordId`).
      * @returns The deleted record, or `null` when none exists for the tenant.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     delete(recordId: string): Promise<T | null>;
     /**
@@ -83,7 +86,7 @@ export declare abstract class RecordsHandler<T extends BaseRecord> {
      * @param criteria - Optional record fields and values used to filter the records.
      * @param options - Required cursor and page-size controls.
      * @returns The matching page of records with its continuation cursor.
-     * @throws {CustomError} RESOURCE_NOT_FOUND when no execution context is bound.
+     * @throws {CustomError} EXECUTION_CONTEXT_ERROR when no execution context is bound.
      */
     find(criteria: Partial<T> | undefined, options: RecordFindOptions): Promise<FindResult<T>>;
     /**
