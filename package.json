@@ -46,7 +46,7 @@
     "types"
   ],
   "dependencies": {
-    "@salamandradevs/tools": "^0.1.0",
+    "@salamandradevs/tools": "^0.2.0",
     "jose": "^6.2.12",
     "mongodb": "^7.6.0",
     "mysql2": "^3.23.4",

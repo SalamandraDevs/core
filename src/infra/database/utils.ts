@@ -1,3 +1,5 @@
+import { isKeyedObject } from '@salamandradevs/tools/shared';
+
 /**
  * Asserts criteria is a non-empty plain object (not an array) without undefined values.
  *
@@ -12,13 +14,7 @@
  *   an `undefined` value.
  */
 export function assertCriteria(input: unknown): asserts input is Record<string, unknown> {
-  if (
-    typeof input !== 'object' ||
-    input === null ||
-    Array.isArray(input) ||
-    Object.keys(input).length === 0 ||
-    Object.values(input).includes(undefined)
-  ) {
+  if (!isKeyedObject(input) || Object.values(input).includes(undefined)) {
     throw new TypeError(
       'Criteria must be a non-empty object (not an array) without undefined values'
     );
@@ -45,13 +41,11 @@ export function assertFindAllFilter(
   greaterThan: unknown,
   lessThan: unknown
 ): void {
-  const hasFields: (input: unknown) => boolean = (input: unknown): boolean =>
-    typeof input === 'object' &&
-    input !== null &&
-    !Array.isArray(input) &&
-    Object.keys(input).length > 0;
-
-  if (!hasFields(criteria) && !hasFields(greaterThan) && !hasFields(lessThan)) {
+  if (
+    !isKeyedObject(criteria) &&
+    !isKeyedObject(greaterThan) &&
+    !isKeyedObject(lessThan)
+  ) {
     throw new TypeError(
       'findAll requires exact criteria or a range bound that selects records'
     );

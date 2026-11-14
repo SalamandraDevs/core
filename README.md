@@ -2,7 +2,8 @@
 
 `@salamandradevs/core` is the shared record and database foundation used by the Salamandra
 Devs Community Platform. It provides a backend-neutral layer for durable records, dataset
-provisioning, cursor pagination, and request-scoped execution context.
+provisioning, cursor pagination, request-scoped execution context, signing-key providers,
+and token and API-key verification.
 
 The package reflects the architecture notes for the Salamandra Devs Community Platform:
 domain and application services should depend on small contracts, while database-specific
@@ -17,15 +18,18 @@ details remain inside adapters.
 - A `RecordsHandler` base class that applies tenant scope, record identity, audit metadata,
   and deterministic cursor pagination.
 - AsyncLocalStorage execution context for the authenticated actor, tenant, and request id.
+- Signing-key, verification-key, and combined key providers (Jose, OpenBao, and remote
+  JWKS) behind contracts, selected by a factory.
+- ES256 access-token and API-key verification with shared claim and payload schemas.
 
 ## Project Shape
 
-`src/database` contains the persistence contracts, dataset provisioner, and concrete MongoDB
-and MySQL adapters. `src/records` contains the base record model and handler used by services
-to build tenant-aware record policies. `src/runtime` holds the runtime execution context that
-binds service work to the current request or job. `src/keys` holds the key contracts, the
-Jose, OpenBao, and JWKS providers, and their factory. `src/tokens` holds the access-token
-verifier and claims schema.
+`src/infra/database` contains the persistence contracts, dataset provisioner, and concrete
+MongoDB and MySQL adapters. `src/storage` contains the base record model and handler used by
+services to build tenant-aware record policies. `src/runtime` holds the runtime execution
+context that binds service work to the current request or job. `src/keys` holds the key
+contracts, the Jose, OpenBao, and JWKS providers, and their factory. `src/tokens` holds the
+access-token and API-key verifiers and their schemas.
 
 Services such as `@salamandradevs/auth` use Core to keep persistence details out of transport and
 application code while still enforcing tenant boundaries close to the record layer.
